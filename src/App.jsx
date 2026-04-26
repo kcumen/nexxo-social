@@ -118,48 +118,92 @@ const API = {
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
-function Nav() {
+// ── Navigation ───────────────────────────────────────────────────────────────
+function Navbar({ user, onLogout }) {
   const navigate = useNavigate()
-  return (
-    <nav className="flex items-center justify-between px-6 md:px-12 py-5 border-b-3 border-black bg-bg">
-      {/* Logo */}
-      <Link to="/" className="flex items-center gap-3">
-        <div className="bg-primary border-3 border-black shadow-neu-sm w-10 h-10 flex items-center justify-center font-heading font-black text-lg">
-          N
-        </div>
-        <span className="font-heading font-bold text-xl tracking-tight">nexxo<span className="text-secondary">.social</span></span>
-      </Link>
+  const [scrolled, setScrolled] = useState(false)
 
-      {/* Links */}
-      <div className="flex items-center gap-6 md:gap-8">
-        <a href="#como" className="nav-link hidden sm:block">Cómo funciona</a>
-        <a href="#generar" className="nav-link hidden sm:block">Generar QR</a>
-        <Secondary
-          size="sm"
-          onClick={() => navigate('/dashboard')}
-          className="hidden md:flex items-center gap-2"
-        >
-          <Users size={16} weight="bold" />
-          Dashboard
-        </Secondary>
-        <Primary
-          size="sm"
-          onClick={() => navigate('/swipe')}
-          className="flex items-center gap-2"
-        >
-          <SquaresFour size={16} weight="bold" />
-          Explorar
-        </Primary>
-        <Secondary
-          size="sm"
-          onClick={() => navigate('/login')}
-          className="flex items-center gap-2 border-secondary text-secondary hover:bg-secondary hover:text-white"
-        >
-          <DeviceMobile size={16} weight="bold" />
-          Admin
-        </Secondary>
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 20)
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  return (
+    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${scrolled ? 'py-2' : 'py-5'}`}>
+      <div className="max-w-7xl mx-auto px-6">
+        <div className={`bg-surface border-3 border-black shadow-neu flex items-center justify-between px-6 py-2 transition-all ${scrolled ? 'shadow-neu-sm' : ''}`}>
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 group">
+            <div className="bg-primary border-2 border-black shadow-neu-xs w-8 h-8 flex items-center justify-center font-heading font-black text-sm group-hover:-rotate-6 transition-transform">
+              N
+            </div>
+            <span className="font-heading font-bold text-lg tracking-tight hidden sm:block">nexxo.social</span>
+          </Link>
+
+          {/* Desktop Links */}
+          <div className="hidden md:flex items-center gap-8">
+            <Link to="/swipe" className="font-heading font-bold text-sm hover:text-primary transition-colors flex items-center gap-2">
+              <SquaresFour size={18} weight="bold" />
+              Swipe Deck
+            </Link>
+            <a href="#como" className="font-heading font-bold text-sm hover:text-secondary transition-colors">Cómo funciona</a>
+          </div>
+
+          {/* User Actions */}
+          <div className="flex items-center gap-3">
+            {user ? (
+              <div className="flex items-center gap-3">
+                <Link 
+                  to={user.role === 'admin' ? '/admin' : '/dashboard'} 
+                  className="font-heading font-bold text-sm hidden sm:block hover:underline"
+                >
+                  {user.name}
+                </Link>
+                <div className="flex items-center gap-2">
+                  <div className="w-9 h-9 rounded-full border-2 border-black bg-accent flex items-center justify-center font-heading font-bold shadow-neu-xs overflow-hidden">
+                    {user.name[0]}
+                  </div>
+                  <button 
+                    onClick={() => { API.logout(); onLogout(); navigate('/login'); }}
+                    className="p-2 hover:bg-red-50 rounded-lg transition-colors text-red-600"
+                    title="Cerrar sesión"
+                  >
+                    <X size={18} weight="bold" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Link to="/login" className="font-heading font-bold text-sm px-4 py-2 hover:bg-bg transition-colors">Entrar</Link>
+                <Primary size="sm" onClick={() => navigate('/login')} className="hidden sm:flex">
+                  Empezar
+                </Primary>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </nav>
+  )
+}
+
+function MobileNav({ user }) {
+  const navigate = useNavigate()
+  return (
+    <div className="md:hidden fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-[90%] max-w-sm">
+      <div className="bg-black border-2 border-white/20 rounded-2xl shadow-2xl p-2 flex items-center justify-around backdrop-blur-lg">
+        <button onClick={() => navigate('/')} className="p-3 text-white/60 hover:text-white transition-colors">
+          <Cube size={24} weight="bold" />
+        </button>
+        <button onClick={() => navigate('/swipe')} className="p-4 bg-primary border-2 border-black rounded-xl -translate-y-4 shadow-xl">
+          <Heart size={24} weight="bold" className="text-black" />
+        </button>
+        <button onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/dashboard')} className="p-3 text-white/60 hover:text-white transition-colors">
+          <Users size={24} weight="bold" />
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -405,7 +449,6 @@ function Footer() {
 function LandingPage() {
   return (
     <>
-      <Nav />
       <Hero />
       <Features />
       <QRGenerator />
@@ -443,20 +486,6 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-bg pb-12">
-      {/* Premium Nav */}
-      <nav className="border-b-3 border-black px-6 md:px-12 py-4 flex items-center justify-between bg-surface sticky top-0 z-40">
-        <div className="flex items-center gap-3">
-          <div className="bg-primary border-3 border-black shadow-neu-xs w-8 h-8 flex items-center justify-center font-heading font-black text-sm">N</div>
-          <span className="font-heading font-bold text-lg tracking-tight">nexxo.social</span>
-        </div>
-        <div className="flex items-center gap-4">
-          <span className="hidden sm:block font-mono text-xs font-bold text-muted uppercase">Plan Business</span>
-          <div className="w-10 h-10 rounded-full border-2 border-black bg-accent flex items-center justify-center font-heading font-bold shadow-neu-xs">
-            {user?.name?.[0] || 'C'}
-          </div>
-        </div>
-      </nav>
-
       <div className="max-w-5xl mx-auto px-6 mt-12">
         {/* Welcome Header */}
         <motion.div 
@@ -638,76 +667,65 @@ function LoginPage({ onLogin }) {
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
-      {/* Minimal header */}
-      <div className="border-b-3 border-black px-6 py-4 bg-surface">
-        <div className="max-w-sm mx-auto flex items-center gap-3">
-          <div className="bg-primary border-3 border-black shadow-neu-sm w-8 h-8 flex items-center justify-center font-heading font-black text-sm">N</div>
-          <span className="font-heading font-bold text-lg">nexxo.social</span>
-          <span className="tag tag-blue ml-auto">Admin</span>
-        </div>
-      </div>
-
+    <div className="h-[calc(100vh-6rem)] flex items-center justify-center px-6 overflow-hidden">
       {/* Login form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
-        <div className="max-w-sm w-full">
-          <div className="text-center mb-10">
-            <div className="w-16 h-16 bg-secondary border-3 border-black shadow-neu-sm mx-auto mb-6 flex items-center justify-center">
-              <DeviceMobile size={32} weight="bold" color="#fff" />
-            </div>
-            <h1 className="font-heading font-extrabold text-3xl mb-2">Panel Admin</h1>
-            <p className="text-muted text-sm">Ingresá tus credenciales para continuar</p>
+      <div className="max-w-sm w-full py-6">
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 bg-secondary border-3 border-black shadow-neu-sm mx-auto mb-6 flex items-center justify-center">
+            <DeviceMobile size={32} weight="bold" color="#fff" />
+          </div>
+          <h1 className="font-heading font-extrabold text-3xl mb-2">Panel Admin</h1>
+          <p className="text-muted text-sm">Ingresá tus credenciales para continuar</p>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
+              Email
+            </label>
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="input-neubrut w-full"
+              required
+            />
+          </div>
+          <div>
+            <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
+              Contraseña
+            </label>
+            <input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              className="input-neubrut w-full"
+              required
+            />
           </div>
 
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
-                Email
-              </label>
-              <input
-                type="email"
-                value={email}
-                onChange={e => setEmail(e.target.value)}
-                className="input-neubrut w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
-                Contraseña
-              </label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="input-neubrut w-full"
-                required
-              />
-            </div>
+          {error && (
+            <p className="text-accent text-sm font-semibold bg-accent/10 border-3 border-accent p-3">
+              {error}
+            </p>
+          )}
 
-            {error && (
-              <p className="text-accent text-sm font-semibold bg-accent/10 border-3 border-accent p-3">
-                {error}
-              </p>
-            )}
+          <Accent
+            type="submit"
+            disabled={loading || !email || !password}
+            size="lg"
+            className="w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+          >
+            {loading ? 'Ingresando...' : 'Ingresar →'}
+          </Accent>
+        </form>
 
-            <Accent
-              type="submit"
-              disabled={loading || !email || !password}
-              size="lg"
-              className="w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-            >
-              {loading ? 'Ingresando...' : 'Ingresar →'}
-            </Accent>
-          </form>
-
-          <div className="mt-8 text-center">
-            <Secondary size="sm" onClick={() => navigate('/')} className="inline-flex items-center gap-1">
-              <ArrowLeft size={14} weight="bold" />
-              Volver al inicio
-            </Secondary>
-          </div>
+        <div className="mt-8 text-center">
+          <Secondary size="sm" onClick={() => navigate('/')} className="inline-flex items-center gap-1">
+            <ArrowLeft size={14} weight="bold" />
+            Volver al inicio
+          </Secondary>
         </div>
       </div>
     </div>
@@ -779,36 +797,24 @@ function AdminDashboard({ user, onLogout }) {
   const blankQRs = qrs.filter(q => q.status === 'blank')
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
-      {/* Admin Header */}
-      <div className="border-b-3 border-black px-6 md:px-12 py-4 flex items-center gap-4 bg-surface flex-wrap">
-        <Secondary size="sm" onClick={() => navigate('/')} className="flex items-center gap-2">
-          <ArrowLeft size={16} weight="bold" />
-          Volver
-        </Secondary>
-        <div className="flex items-center gap-3">
-          <div className="bg-secondary border-3 border-black shadow-neu-sm w-8 h-8 flex items-center justify-center font-heading font-black text-white text-sm">N</div>
-          <span className="font-heading font-bold text-lg">nexxo.social</span>
-        </div>
-        <span className="tag tag-blue">Admin</span>
-        <span className="ml-auto text-sm font-mono text-muted">{user?.email}</span>
-        <Secondary
-          size="sm"
-          onClick={() => { API.logout(); onLogout() }}
-          className="text-accent border-accent hover:bg-accent hover:text-white"
-        >
-          Cerrar sesión
-        </Secondary>
-      </div>
-
-      <div className="flex-1 max-w-6xl mx-auto w-full px-6 md:px-12 py-12">
+    <div className="min-h-screen bg-bg">
+      <div className="max-w-7xl mx-auto px-6 py-12">
 
         {/* Title */}
-        <div className="mb-10">
-          <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-2">
-            Panel de Administración
-          </h1>
-          <p className="text-muted">Gestión centralizada de códigos QR y estadísticas</p>
+        <div className="mb-10 flex items-center justify-between">
+          <div>
+            <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-2">
+              Panel de Administración
+            </h1>
+            <p className="text-muted">Gestión centralizada de códigos QR y estadísticas</p>
+          </div>
+          <Secondary
+            size="sm"
+            onClick={() => { API.logout(); onLogout() }}
+            className="text-accent border-accent hover:bg-accent hover:text-white"
+          >
+            Cerrar sesión
+          </Secondary>
         </div>
 
         {/* Stats row */}
@@ -1037,23 +1043,28 @@ function AdminDashboard({ user, onLogout }) {
 function ClaimPage() {
   const navigate = useNavigate()
   const { code: shortCode } = useParams()
-  const [companyName, setCompanyName] = useState('')
-  const [tagline, setTagline] = useState('')
+  const [formData, setFormData] = useState({
+    companyName: '',
+    email: '',
+    password: '',
+    tagline: ''
+  })
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
 
   const handleClaim = async (e) => {
     e.preventDefault()
-    if (!companyName.trim()) return
+    if (!formData.companyName.trim() || !formData.email || !formData.password) return
     setLoading(true)
     setError(null)
     try {
-      const res = await API.claimQR(shortCode, companyName, tagline)
+      // In a real app, this would register the user and link the QR
+      const res = await API.claimQR(shortCode, formData.companyName, formData.tagline)
       if (res.error) throw new Error(res.error)
       setResult(res)
     } catch (err) {
-      setError(err.message || 'No se pudo registrar. Intentá de nuevo.')
+      setError(err.message || 'No se pudo completar el registro.')
     } finally {
       setLoading(false)
     }
@@ -1061,124 +1072,134 @@ function ClaimPage() {
 
   if (result) {
     return (
-      <div className="min-h-screen bg-bg flex flex-col">
-        <div className="border-b-3 border-black px-6 py-4 bg-surface">
-          <div className="max-w-lg mx-auto flex items-center gap-3">
-            <div className="bg-accent border-3 border-black shadow-neu-sm w-8 h-8 flex items-center justify-center font-heading font-black text-white text-sm">N</div>
-            <span className="font-heading font-bold text-lg text-white">nexxo.social</span>
-          </div>
-        </div>
-        <div className="flex-1 flex items-center justify-center px-6 py-12">
-          <div className="max-w-md w-full text-center reveal">
-            <div className="bg-surface border-3 border-black shadow-neu-lg p-10 mb-8">
-              <div className="w-16 h-16 bg-accent border-3 border-black shadow-neu-sm mx-auto mb-6 flex items-center justify-center">
-                <QrCode size={32} weight="bold" color="#fff" />
-              </div>
-              <h1 className="font-heading font-extrabold text-3xl mb-3">¡QR vinculado!</h1>
-              <p className="text-muted text-sm leading-relaxed mb-6">
-                <span className="font-heading font-bold text-text">{companyName}</span> ya tiene su QR activo en nexxo.social
-              </p>
-              <div className="flex justify-center mb-6">
-                <CustomQRCode 
-                  value={result.url || `https://nexxo.social/r/${result.shortCode}`} 
-                  size={160} 
-                />
-              </div>
-              <p className="font-mono text-xs text-muted break-all bg-bg p-3 border-3 border-black">
-                {result.url}
-              </p>
+      <div className="min-h-screen bg-bg flex items-center justify-center px-6">
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="max-w-md w-full text-center"
+        >
+          <div className="bg-surface border-4 border-black shadow-neu-lg p-10 mb-8">
+            <div className="w-20 h-20 bg-secondary border-4 border-black shadow-neu-sm mx-auto mb-6 flex items-center justify-center -rotate-6">
+              <QrCode size={40} weight="bold" color="#fff" />
             </div>
-            <Primary href={result.url} size="lg" className="w-full justify-center">
-              Ver mi perfil →
-            </Primary>
+            <h1 className="font-heading font-black text-4xl mb-4">¡Bienvenido a Nexxo!</h1>
+            <p className="text-muted text-sm leading-relaxed mb-8">
+              Tu identidad digital ya está vinculada. <span className="font-bold text-black">{formData.companyName}</span> está lista para conectar.
+            </p>
+            <div className="flex justify-center mb-8 p-4 bg-white border-2 border-black/10">
+              <CustomQRCode 
+                value={result.url || `https://nexxo.social/r/${result.shortCode}`} 
+                size={180} 
+              />
+            </div>
+            <div className="bg-bg p-4 border-3 border-black font-mono text-xs break-all">
+              nexxo.social/r/{result.shortCode}
+            </div>
           </div>
-        </div>
+          <Primary onClick={() => navigate('/dashboard')} size="lg" className="w-full justify-center">
+            Ir a mi Dashboard →
+          </Primary>
+        </motion.div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col">
-      {/* Minimal header */}
-      <div className="border-b-3 border-black px-6 py-4 bg-surface">
-        <div className="max-w-lg mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary border-3 border-black shadow-neu-sm w-8 h-8 flex items-center justify-center font-heading font-black text-sm">N</div>
-            <span className="font-heading font-bold text-lg">nexxo.social</span>
+    <div className="min-h-[calc(100vh-6rem)] grid grid-cols-1 lg:grid-cols-2">
+      {/* Visual side */}
+      <div className="hidden lg:flex bg-primary border-r-4 border-black flex-col items-center justify-center p-12 relative overflow-hidden">
+        <div className="absolute top-10 left-10 opacity-20">
+          <QrCode size={200} weight="fill" />
+        </div>
+        <div className="relative z-10 text-center">
+          <div className="bg-white border-4 border-black p-8 shadow-neu mb-8 inline-block -rotate-3">
+             <CustomQRCode value={`https://nexxo.social/r/${shortCode}`} size={200} />
           </div>
-          <Secondary size="sm" onClick={() => navigate('/')} className="flex items-center gap-1">
-            <ArrowLeft size={14} weight="bold" />
-            Volver
-          </Secondary>
+          <h2 className="font-heading font-black text-5xl mb-4">Tu llave al networking digital</h2>
+          <p className="text-xl font-heading font-bold max-w-sm mx-auto">
+            Reclama este código físico y comienza a construir tu presencia profesional hoy mismo.
+          </p>
         </div>
       </div>
 
-      {/* Claim form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      {/* Form side */}
+      <div className="flex items-center justify-center p-8 md:p-16 bg-bg">
         <div className="max-w-md w-full">
-          {/* QR preview */}
-          <div className="text-center mb-10">
-            <div className="flex justify-center mb-6">
-              <CustomQRCode 
-                value={`https://nexxo.social/r/${shortCode}`} 
-                size={120} 
-              />
-            </div>
-            <span className="tag tag-red mb-3">QR vacío</span>
-            <h1 className="font-heading font-extrabold text-3xl md:text-4xl tracking-tight leading-tight">
-              Este QR no tiene empresa asignada
-            </h1>
-            <p className="text-muted text-sm mt-3 leading-relaxed">
-              Registrá tu empresa y reclamá este código para vos.
-            </p>
+          <div className="mb-10">
+            <span className="tag tag-red mb-4 inline-block">Activación Pendiente</span>
+            <h1 className="font-heading font-black text-4xl md:text-5xl mb-3">Crea tu cuenta</h1>
+            <p className="text-muted">Ingresa los datos para vincular este QR a tu perfil profesional.</p>
           </div>
 
-          {/* Form */}
-          <form onSubmit={handleClaim} className="space-y-4">
-            <div>
-              <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
-                Nombre de la empresa
-              </label>
-              <input
-                type="text"
-                value={companyName}
-                onChange={e => setCompanyName(e.target.value)}
-                placeholder="Ej: Mercado Tech"
-                className="input-neubrut w-full"
-                required
-              />
-            </div>
-            <div>
-              <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
-                Tagline <span className="text-muted font-normal normal-case">(opcional)</span>
-              </label>
-              <input
-                type="text"
-                value={tagline}
-                onChange={e => setTagline(e.target.value)}
-                placeholder="Ej: Fintech para LatAm"
-                className="input-neubrut w-full"
-              />
+          <form onSubmit={handleClaim} className="space-y-5">
+            <div className="grid grid-cols-1 gap-4">
+              <div>
+                <label className="label-neubrut">Nombre de la Empresa / Profesional</label>
+                <input
+                  type="text"
+                  value={formData.companyName}
+                  onChange={e => setFormData({...formData, companyName: e.target.value})}
+                  placeholder="Ej: Nexxo Corp"
+                  className="input-neubrut w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label-neubrut">Email Profesional</label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={e => setFormData({...formData, email: e.target.value})}
+                  placeholder="email@tuempresa.com"
+                  className="input-neubrut w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label-neubrut">Contraseña</label>
+                <input
+                  type="password"
+                  value={formData.password}
+                  onChange={e => setFormData({...formData, password: e.target.value})}
+                  placeholder="••••••••"
+                  className="input-neubrut w-full"
+                  required
+                />
+              </div>
+              <div>
+                <label className="label-neubrut">Slogan / Tagline <span className="text-muted font-normal">(opcional)</span></label>
+                <input
+                  type="text"
+                  value={formData.tagline}
+                  onChange={e => setFormData({...formData, tagline: e.target.value})}
+                  placeholder="Ej: Innovación en networking"
+                  className="input-neubrut w-full"
+                />
+              </div>
             </div>
 
             {error && (
-              <p className="text-accent text-sm font-semibold bg-accent/10 border-3 border-accent p-3">
+              <motion.p 
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="text-accent text-sm font-bold bg-accent/10 border-2 border-accent p-3"
+              >
                 {error}
-              </p>
+              </motion.p>
             )}
 
             <Accent
               type="submit"
-              disabled={loading || !companyName.trim()}
+              disabled={loading}
               size="lg"
-              className="w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full justify-center mt-6"
             >
-              {loading ? 'Vinculando...' : 'Reclamar este QR →'}
+              {loading ? 'Activando...' : 'Reclamar y Activar QR →'}
             </Accent>
           </form>
 
-          <p className="text-center text-xs text-muted mt-6 font-mono">
-            Al reclamar, este QR queda vinculado a tu empresa y no puede ser reutilizado.
+          <p className="text-center text-[10px] text-muted mt-8 font-mono uppercase tracking-widest">
+            Al activar, este QR físico quedará bloqueado permanentemente a tu cuenta.
           </p>
         </div>
       </div>
@@ -1192,25 +1213,28 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-bg">
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/swipe" element={<SwipeDeck onBack={() => window.history.back()} />} />
-          <Route path="/claim/:code" element={<ClaimPage />} />
-          <Route path="/login" element={
-            user && user.role === 'admin' 
-              ? <Navigate to="/admin" replace /> 
-              : <LoginPage onLogin={(u) => setUser(u)} />
-          } />
-          <Route path="/admin" element={
-            user && user.role === 'admin' 
-              ? <AdminDashboard user={user} onLogout={() => setUser(null)} /> 
-              : <Navigate to="/login" replace />
-          } />
-          {/* Fallback para el viejo sistema de query params si es necesario */}
-          <Route path="/claim" element={<Navigate to="/" replace />} />
-        </Routes>
+      <div className="flex flex-col min-h-screen">
+        <Navbar user={user} onLogout={() => setUser(null)} />
+        <main className="flex-1 pt-24 pb-20 md:pb-0">
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/swipe" element={<SwipeDeck onBack={() => window.history.back()} />} />
+            <Route path="/claim/:code" element={<ClaimPage />} />
+            <Route path="/login" element={
+              user && user.role === 'admin' 
+                ? <Navigate to="/admin" replace /> 
+                : <LoginPage onLogin={(u) => setUser(u)} />
+            } />
+            <Route path="/admin" element={
+              user && user.role === 'admin' 
+                ? <AdminDashboard user={user} onLogout={() => setUser(null)} /> 
+                : <Navigate to="/login" replace />
+            } />
+            <Route path="/claim" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <MobileNav user={user} />
       </div>
     </BrowserRouter>
   )
