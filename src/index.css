@@ -1,0 +1,100 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #FACC15;
+  --color-secondary: #3B82F6;
+  --color-accent: #EF4444;
+  --color-success: #22C55E;
+  --color-bg: #FAFAF9;
+  --color-surface: #FFFFFF;
+  --color-text: #0A0A0A;
+  --color-muted: #525252;
+  
+  --font-heading: "Outfit", sans-serif;
+  --font-sans: "DM Sans", sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+}
+
+/* ── Global Styles ── */
+@layer base {
+  html, body {
+    overscroll-behavior: none;
+    overscroll-behavior-x: none;
+    overscroll-behavior-y: none;
+  }
+  
+  * { 
+    border-radius: 0 !important; 
+  }
+
+  body {
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-family: var(--font-sans);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+  }
+}
+
+/* ── Neubrutalism Design System ── */
+@layer components {
+  .card {
+    @apply bg-surface border-[3px] border-black shadow-[6px_6px_0_#000] p-6 transition-all duration-150 ease-out;
+  }
+  .card:hover {
+    @apply -translate-x-[2px] -translate-y-[2px] shadow-[8px_8px_0_#000];
+  }
+
+  .input-neubrut {
+    @apply bg-surface border-[3px] border-black shadow-[4px_4px_0_#000] px-4 py-3 font-sans text-base w-full outline-none text-text transition-all duration-150 ease-out;
+  }
+  .input-neubrut:focus {
+    @apply outline-[3px] outline-primary;
+  }
+
+  .tag {
+    @apply bg-primary border-2 border-black shadow-[2px_2px_0_#000] px-3 py-1 font-heading font-semibold text-[0.75rem] uppercase tracking-wider inline-block;
+  }
+
+  .tag-blue {
+    @apply bg-secondary text-white;
+  }
+
+  .tag-red {
+    @apply bg-accent text-white;
+  }
+
+  .nav-link {
+    @apply font-heading font-semibold text-[0.9rem] text-muted no-underline transition-colors duration-150 ease-out hover:text-text;
+  }
+
+  .stat-number {
+    @apply font-heading font-extrabold text-[3rem] leading-none;
+  }
+
+  .qr-card {
+    @apply bg-surface border-[3px] border-black shadow-[6px_6px_0_#000] p-5;
+  }
+
+  .feature-icon {
+    @apply bg-primary border-[3px] border-black shadow-[3px_3px_0_#000] w-14 h-14 flex items-center justify-center text-2xl flex-shrink-0;
+  }
+
+  .stat-card {
+    @apply bg-surface border-[3px] border-black shadow-[6px_6px_0_#000] p-6 text-center transition-all duration-150 ease-out hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-[8px_8px_0_#000];
+  }
+
+  .qr-row {
+    @apply bg-surface border-[3px] border-black shadow-[4px_4px_0_#000] p-4 flex items-center justify-between gap-4 transition-all duration-150 ease-out hover:-translate-x-[1px] hover:-translate-y-[1px] hover:shadow-[5px_5px_0_#000];
+  }
+
+  .reveal {
+    @apply opacity-0 translate-y-6 animate-[reveal_400ms_ease_forwards];
+  }
+}
+
+@keyframes reveal {
+  to { opacity: 1; transform: translateY(0); }
+}

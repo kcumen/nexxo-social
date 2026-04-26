@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { motion, AnimatePresence, useMotionValue, useTransform, useSpring } from 'framer-motion'
 import {
   X,
   Heart,
@@ -10,18 +11,20 @@ import {
   Check,
   Crown,
   Lightning,
+  Sparkle,
+  Globe,
+  Users,
 } from '@phosphor-icons/react'
 import { Primary, Secondary, Accent } from '../components/Buttons'
 
-// ── Tipos de badges para empresas ─────────────────────────────────────────────
+// ── Configuration ─────────────────────────────────────────────────────────────
 const BADGE_CONFIG = {
-  featured: { Icon: Crown, label: 'Featured', color: 'bg-primary' },
-  trending: { Icon: Lightning, label: 'Trending', color: 'bg-accent text-white' },
-  new: { Icon: Star, label: 'Nuevo', color: 'bg-secondary text-white' },
-  verified: { Icon: Check, label: 'Verificado', color: 'bg-success text-white' },
+  featured: { Icon: Crown, label: 'Destacada', color: 'bg-primary', textColor: 'text-text' },
+  trending: { Icon: Lightning, label: 'Tendencia', color: 'bg-accent', textColor: 'text-white' },
+  new: { Icon: Star, label: 'Nueva', color: 'bg-secondary', textColor: 'text-white' },
+  verified: { Icon: Check, label: 'Verificada', color: 'bg-success', textColor: 'text-white' },
 }
 
-// ── Mock data para desarrollo ─────────────────────────────────────────────────
 const MOCK_COMPANIES = [
   {
     id: '1',
@@ -35,6 +38,9 @@ const MOCK_COMPANIES = [
     matches: 12,
     badge: 'featured',
     logoLetter: 'M',
+    accentColor: '#FACC15',
+    employees: '50-100',
+    website: 'mercadotech.co'
   },
   {
     id: '2',
@@ -42,12 +48,15 @@ const MOCK_COMPANIES = [
     tagline: 'Analytics predictivo con IA',
     location: 'São Paulo, BR',
     industry: 'AI / Data',
-    description: 'Plataforma de analytics que predice churn y optimiza retención. Estamos levantando ronda seed.',
+    description: 'Plataforma de analytics que predice churn y optimiza retención. Estamos levantando ronda seed para expansión regional.',
     tags: ['AI', 'Machine Learning', 'SaaS', 'B2B'],
     scans: 31,
     matches: 8,
     badge: 'trending',
     logoLetter: 'D',
+    accentColor: '#EF4444',
+    employees: '10-20',
+    website: 'datasphere.io'
   },
   {
     id: '3',
@@ -55,12 +64,15 @@ const MOCK_COMPANIES = [
     tagline: 'Infraestructura cloud gestionada',
     location: 'Ciudad de México, MX',
     industry: 'DevOps',
-    description: 'Ayudamos empresas a migrar y gestionar su infraestructura en AWS/GCP/AZURE. Certificados en todos los clouds majors.',
+    description: 'Ayudamos empresas a migrar y gestionar su infraestructura en AWS/GCP/AZURE. Expertos en Kubernetes y seguridad.',
     tags: ['AWS', 'GCP', 'DevOps', 'Cloud'],
     scans: 28,
     matches: 6,
-    badge: null,
+    badge: 'verified',
     logoLetter: 'C',
+    accentColor: '#3B82F6',
+    employees: '20-50',
+    website: 'cloudflow.mx'
   },
   {
     id: '4',
@@ -68,12 +80,15 @@ const MOCK_COMPANIES = [
     tagline: 'Abogados on-demand para startups',
     location: 'Madrid, ES',
     industry: 'Legal Tech',
-    description: 'Contratos, propiedad intelectual, levée de fondos. Legal para founders, sin retainer.',
+    description: 'Contratos, propiedad intelectual, levantamiento de capital. Soluciones legales ágiles para founders modernos.',
     tags: ['Legal Tech', 'Startups', 'Contracts'],
     scans: 19,
     matches: 4,
     badge: 'new',
     logoLetter: 'L',
+    accentColor: '#A855F7',
+    employees: '5-10',
+    website: 'legalsync.es'
   },
   {
     id: '5',
@@ -81,396 +96,441 @@ const MOCK_COMPANIES = [
     tagline: 'Agencia de crecimiento B2B',
     location: 'Bogotá, CO',
     industry: 'Marketing',
-    description: 'Generamos leads qualificados para empresas SaaS. Metodología outbound + content. CAC garantizado.',
+    description: 'Generamos leads cualificados para empresas SaaS. Metodología outbound + content de alto impacto.',
     tags: ['B2B', 'Growth', 'Marketing', 'SaaS'],
     scans: 22,
     matches: 9,
     badge: null,
     logoLetter: 'G',
+    accentColor: '#10B981',
+    employees: '15-30',
+    website: 'growthlab.co'
   },
 ]
 
-// ── Umbral de swipe para activar ───────────────────────────────────────────────
-const SWIPE_THRESHOLD = 100 // px
+// ── Components ────────────────────────────────────────────────────────────────
 
-// ── Componente: Overlay de swipe sobre la card ─────────────────────────────────
-function SwipeOverlay({ offsetX }) {
-  if (Math.abs(offsetX) < 20) return null
-
-  const isRight = offsetX > 0
-  const opacity = Math.min(Math.abs(offsetX) / SWIPE_THRESHOLD, 1) * 0.9
-
-  return (
-    <div
-      className={`absolute inset-0 flex items-center justify-center pointer-events-none z-20 rounded-none`}
-      style={{ opacity }}
-    >
-      <div
-        className={`border-4 font-heading font-black text-3xl px-6 py-3 rotate-[-15deg] ${
-          isRight
-            ? 'border-accent bg-accent text-white'
-            : 'border-black bg-black text-white'
-        }`}
-      >
-        {isRight ? 'CONNECT' : 'PASS'}
-      </div>
-    </div>
-  )
-}
-
-// ── Componente: Tarjeta de empresa con gestos ──────────────────────────────────
-function CompanyCard({ company, onSwipe }) {
-  const cardRef = useRef(null)
-  const [offsetX, setOffsetX] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const startX = useRef(0)
-
+function CompanyCard({ company, onSwipe, index, total }) {
+  const x = useMotionValue(0)
+  const rotate = useTransform(x, [-200, 200], [-25, 25])
+  const opacity = useTransform(x, [-200, -150, 0, 150, 200], [0, 1, 1, 1, 0])
+  const scale = useTransform(x, [-200, 0, 200], [0.8, 1, 0.8])
+  
+  const opacityPass = useTransform(x, [-150, -50], [1, 0])
+  const opacityConnect = useTransform(x, [50, 150], [0, 1])
+  
   const badge = company.badge ? BADGE_CONFIG[company.badge] : null
-
-  // Rotation: inclinar la card según cuánto se arrastra
-  const rotation = offsetX * 0.05 // ~0.8deg cada 10px
-  const opacity = isDragging ? 1 : 1
-
-  // ── Touch handlers ──────────────────────────────────────────────────────────
-  const handleTouchStart = useCallback((e) => {
-    setIsDragging(true)
-    startX.current = e.touches[0].clientX
-  }, [])
-
-  const handleTouchMove = useCallback((e) => {
-    const delta = e.touches[0].clientX - startX.current
-    setOffsetX(delta)
-  }, [])
-
-  const handleTouchEnd = useCallback(() => {
-    setIsDragging(false)
-    if (Math.abs(offsetX) >= SWIPE_THRESHOLD) {
-      const dir = offsetX > 0 ? 'right' : 'left'
-      setOffsetX(offsetX > 0 ? 400 : -400)
-      setTimeout(() => onSwipe(dir), 200)
-    } else {
-      setOffsetX(0)
-    }
-  }, [offsetX, onSwipe])
-
-  // ── Mouse handlers (desktop) ─────────────────────────────────────────────────
-  const handleMouseDown = useCallback((e) => {
-    e.preventDefault()
-    setIsDragging(true)
-    startX.current = e.clientX
-
-    const handleMouseMove = (e) => {
-      const delta = e.clientX - startX.current
-      setOffsetX(delta)
-    }
-
-    const handleMouseUp = () => {
-      setIsDragging(false)
-      if (Math.abs(offsetX) >= SWIPE_THRESHOLD) {
-        const dir = offsetX > 0 ? 'right' : 'left'
-        setOffsetX(offsetX > 0 ? 400 : -400)
-        setTimeout(() => onSwipe(dir), 200)
-      } else {
-        setOffsetX(0)
-      }
-      window.removeEventListener('mousemove', handleMouseMove)
-      window.removeEventListener('mouseup', handleMouseUp)
-    }
-
-    window.addEventListener('mousemove', handleMouseMove)
-    window.addEventListener('mouseup', handleMouseUp)
-  }, [offsetX, onSwipe])
-
+  
   return (
-    <div
-      ref={cardRef}
-      className="card relative w-full overflow-hidden select-none cursor-grab active:cursor-grabbing"
-      style={{
-        minHeight: '380px',
-        maxHeight: '560px',
-        transform: `translateX(${offsetX}px) rotate(${rotation}deg)`,
+    <motion.div
+      style={{ 
+        zIndex: total - index,
+        gridArea: '1 / 1 / 2 / 2',
+        x,
+        rotate,
         opacity,
-        transition: isDragging ? 'none' : 'transform 0.3s ease, opacity 0.3s ease',
-        touchAction: 'pan-y',
-        userSelect: 'none',
+        scale
       }}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      onMouseDown={handleMouseDown}
+      drag="x"
+      dragConstraints={{ left: 0, right: 0 }}
+      onDragEnd={(e, { offset, velocity }) => {
+        const swipe = Math.abs(offset.x) > 100 || Math.abs(velocity.x) > 500
+        if (swipe) {
+          onSwipe(offset.x > 0 ? 'right' : 'left')
+        }
+      }}
+      initial={{ scale: 0.9, opacity: 0, y: 30 }}
+      animate={{ scale: 1, opacity: 1, y: 0 }}
+      exit={(custom) => ({
+        x: custom > 0 ? 1000 : -1000,
+        opacity: 0,
+        scale: 0.5,
+        rotate: custom > 0 ? 45 : -45,
+        transition: { duration: 0.4, ease: "easeIn" }
+      })}
+      className="card relative w-full h-full flex flex-col cursor-grab active:cursor-grabbing bg-white select-none overflow-hidden"
     >
-      {/* Overlay de swipe (aparece mientras arrastás) */}
-      <SwipeOverlay offsetX={offsetX} />
-
-      {/* Badge superior */}
-      {badge && (
-        <div className={`absolute top-3 left-3 ${badge.color} border-2 border-black shadow-neu-sm px-2 py-1 flex items-center gap-1 z-10`}>
-          <badge.Icon size={12} weight="bold" />
-          <span className="font-heading font-bold text-xs uppercase tracking-wide">{badge.label}</span>
+      {/* Visual Feedback Overlays */}
+      <motion.div 
+        className="absolute inset-0 bg-secondary/50 z-10 pointer-events-none flex items-center justify-center"
+        style={{ opacity: opacityConnect }}
+      >
+        <div className="border-8 border-secondary px-8 py-4 rotate-12 font-heading font-black text-6xl text-secondary bg-white shadow-neu-md">
+          CONNECT
         </div>
-      )}
+      </motion.div>
 
-      {/* Contenido scrolleable */}
-      <div className="overflow-y-auto" style={{ maxHeight: '540px' }}>
-        {/* Logo de empresa */}
-        <div className="flex justify-center mt-6 mb-3">
-          <div className="w-16 h-16 border-3 border-black shadow-neu-md bg-primary flex items-center justify-center">
-            <span className="font-heading font-black text-3xl text-text">{company.logoLetter}</span>
+      <motion.div 
+        className="absolute inset-0 bg-accent/50 z-10 pointer-events-none flex items-center justify-center"
+        style={{ opacity: opacityPass }}
+      >
+        <div className="border-8 border-accent px-8 py-4 -rotate-12 font-heading font-black text-6xl text-accent bg-white shadow-neu-md">
+          PASS
+        </div>
+      </motion.div>
+
+      {/* Card Content */}
+      <div className="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-6">
+        {/* Header: Logo + Badges */}
+        <div className="flex justify-between items-start mb-4">
+          <div 
+            className="w-16 h-16 border-4 border-black shadow-neu-md flex items-center justify-center text-3xl font-heading font-black"
+            style={{ backgroundColor: company.accentColor || '#FACC15' }}
+          >
+            {company.logoLetter}
           </div>
-        </div>
-
-        {/* Info principal */}
-        <div className="text-center mb-3 px-3">
-          <h2 className="font-heading font-extrabold text-2xl md:text-3xl tracking-tight mb-0.5">{company.name}</h2>
-          <div className="flex items-center justify-center gap-1 text-xs text-muted mb-1">
-            <MapPin size={12} weight="bold" />
-            <span>{company.location}</span>
-            <span className="mx-0.5">·</span>
-            <Tag size={12} weight="bold" />
-            <span>{company.industry}</span>
-          </div>
-          <p className="font-heading font-semibold text-accent text-sm">{company.tagline}</p>
-        </div>
-
-        {/* Divider */}
-        <div className="border-t-3 border-black mx-3 mb-3" />
-
-        {/* Descripción */}
-        <p className="text-sm text-muted leading-relaxed mb-3 text-center px-4">
-          {company.description}
-        </p>
-
-        {/* Tags */}
-        <div className="flex flex-wrap justify-center gap-1.5 mb-3 px-3">
-          {company.tags.map(tag => (
-            <span key={tag} className="tag text-[10px] py-1 px-2">{tag}</span>
-          ))}
-        </div>
-
-        {/* Stats */}
-        <div className="border-t-3 border-black pt-3 pb-3 mt-auto">
-          <div className="flex justify-around">
-            <div className="text-center px-2">
-              <div className="font-heading font-extrabold text-xl">{company.scans}</div>
-              <div className="text-[10px] text-muted uppercase tracking-wide">escaneos</div>
-            </div>
-            <div className="w-px bg-black" />
-            <div className="text-center px-2">
-              <div className="font-heading font-extrabold text-xl text-accent">{company.matches}</div>
-              <div className="text-[10px] text-muted uppercase tracking-wide">matches</div>
-            </div>
-            <div className="w-px bg-black" />
-            <div className="text-center px-2">
-              <div className="font-heading font-extrabold text-xl text-secondary">{company.industry.slice(0, 3)}</div>
-              <div className="text-[10px] text-muted uppercase tracking-wide">sector</div>
+          
+          <div className="flex flex-col gap-2 items-end">
+            {badge && (
+              <div className={`${badge.color} ${badge.textColor} border-2 border-black shadow-neu-sm px-3 py-1 flex items-center gap-1.5`}>
+                <badge.Icon size={14} weight="bold" />
+                <span className="font-heading font-bold text-[10px] uppercase tracking-wider">{badge.label}</span>
+              </div>
+            )}
+            <div className="bg-white border-2 border-black shadow-neu-sm px-2 py-1 flex items-center gap-1.5">
+              <Users size={12} weight="bold" />
+              <span className="font-mono text-[10px] font-bold">{company.employees}</span>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Hint de gesto */}
-      <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-4 opacity-40 pointer-events-none">
-        <div className="flex items-center gap-1.5">
-          <X size={12} weight="bold" className="text-muted" />
-          <span className="text-[10px] text-muted font-mono">Arrastrá</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Heart size={12} weight="bold" className="text-accent" />
-          <span className="text-[10px] text-muted font-mono">o botones</span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Componente: Modal de Match ────────────────────────────────────────────────
-function MatchModal({ company, onClose }) {
-  if (!company) return null
-
-  return (
-    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="card text-center max-w-sm w-full reveal">
+        {/* Title & Tagline */}
         <div className="mb-4">
-          <div className="w-16 h-16 mx-auto border-3 border-black shadow-neu-md bg-accent flex items-center justify-center mb-4">
-            <Heart size={32} weight="bold" className="text-white" />
-          </div>
-          <h2 className="font-heading font-extrabold text-4xl tracking-tight mb-2">
-            ¡Match!
+          <h2 className="font-heading font-black text-2xl md:text-3xl leading-none mb-1 tracking-tight">
+            {company.name}
           </h2>
-          <p className="text-muted text-sm">
-            Te conectaste con <strong>{company.name}</strong>
+          <p className="text-accent font-heading font-bold text-base leading-tight">
+            {company.tagline}
           </p>
         </div>
 
-        <div className="border-t-3 border-black pt-4 mb-6">
-          <div className="w-14 h-14 mx-auto border-3 border-black shadow-neu-sm bg-primary flex items-center justify-center mb-3">
-            <span className="font-heading font-black text-2xl">{company.logoLetter}</span>
+        {/* Details Grid */}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-secondary/10 border-2 border-black flex items-center justify-center">
+              <MapPin size={16} weight="bold" className="text-secondary" />
+            </div>
+            <div>
+              <p className="text-[9px] uppercase font-bold text-muted leading-none">Ubicación</p>
+              <p className="text-xs font-bold">{company.location}</p>
+            </div>
           </div>
-          <p className="font-heading font-semibold text-lg">{company.name}</p>
-          <p className="text-sm text-muted">{company.tagline}</p>
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-primary/10 border-2 border-black flex items-center justify-center">
+              <Tag size={16} weight="bold" className="text-text" />
+            </div>
+            <div>
+              <p className="text-[9px] uppercase font-bold text-muted leading-none">Sector</p>
+              <p className="text-xs font-bold">{company.industry}</p>
+            </div>
+          </div>
         </div>
 
-        <Primary onClick={onClose} className="w-full justify-center">
-          Continuar swipeando
-        </Primary>
+        {/* Description */}
+        <div className="bg-bg border-3 border-black p-3 mb-4 relative">
+          <div className="absolute -top-3 -left-2 bg-white border-2 border-black px-2 py-0.5 text-[8px] font-black uppercase tracking-widest">
+            About
+          </div>
+          <p className="text-xs leading-relaxed text-text">
+            {company.description}
+          </p>
+        </div>
+
+        {/* Tags */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          {company.tags.map(tag => (
+            <span key={tag} className="tag text-[10px] py-1 px-3 bg-white border-2 border-black shadow-neu-xs hover:bg-primary transition-colors cursor-default">
+              #{tag}
+            </span>
+          ))}
+        </div>
+
+        {/* Action Link */}
+        <div className="flex items-center gap-2 text-muted hover:text-text transition-colors">
+          <Globe size={16} />
+          <span className="font-mono text-xs font-bold">{company.website}</span>
+        </div>
       </div>
-    </div>
+
+      {/* Footer Stats */}
+      <div className="bg-black text-white p-2.5 flex justify-around items-center border-t-3 border-black">
+        <div className="text-center">
+          <div className="text-xl font-heading font-black">{company.scans}</div>
+          <div className="text-[9px] uppercase font-bold opacity-60">Escaneos</div>
+        </div>
+        <div className="h-8 w-px bg-white/20" />
+        <div className="text-center">
+          <div className="text-xl font-heading font-black text-primary">{company.matches}</div>
+          <div className="text-[9px] uppercase font-bold opacity-60">Matches</div>
+        </div>
+        <div className="h-8 w-px bg-white/20" />
+        <div className="text-center">
+          <Sparkle size={20} weight="fill" className="text-accent mx-auto mb-1" />
+          <div className="text-[9px] uppercase font-bold opacity-60">VIP</div>
+        </div>
+      </div>
+    </motion.div>
   )
 }
 
-// ── Componente: Stack vacío ──────────────────────────────────────────────────
+function MatchModal({ company, onClose }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[100] p-6"
+    >
+      <motion.div 
+        initial={{ scale: 0.8, rotate: -10, y: 100 }}
+        animate={{ scale: 1, rotate: 0, y: 0 }}
+        className="card max-w-sm w-full bg-primary border-4 border-black text-center relative overflow-hidden"
+      >
+        {/* Animated Background Sparkles */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          {[...Array(6)].map((_, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ 
+                opacity: [0, 1, 0], 
+                scale: [0, 1.5, 0],
+                x: Math.random() * 300 - 150,
+                y: Math.random() * 400 - 200
+              }}
+              transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+              className="absolute top-1/2 left-1/2"
+            >
+              <Sparkle weight="fill" className="text-accent" size={24} />
+            </motion.div>
+          ))}
+        </div>
+
+        <div className="relative z-10 py-10 px-6">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              rotate: [0, 10, -10, 0]
+            }}
+            transition={{ duration: 0.5, repeat: 2 }}
+            className="w-24 h-24 mx-auto bg-white border-4 border-black shadow-neu-lg flex items-center justify-center mb-8"
+          >
+            <Heart size={48} weight="fill" className="text-accent" />
+          </motion.div>
+
+          <h2 className="font-heading font-black text-5xl mb-4 tracking-tighter leading-none">
+            ¡ES UN MATCH!
+          </h2>
+          
+          <p className="font-heading font-bold text-lg mb-8 bg-black text-white py-2 px-4 inline-block">
+            {company.name}
+          </p>
+
+          <p className="text-sm font-bold mb-10 leading-relaxed max-w-[200px] mx-auto">
+            Te has conectado con éxito. Ahora pueden ver sus perfiles completos.
+          </p>
+
+          <div className="space-y-3">
+            <Primary onClick={onClose} size="lg" className="w-full justify-center text-xl">
+              SEGUIR EXPLORANDO
+            </Primary>
+            <button 
+              onClick={onClose}
+              className="text-xs font-mono font-bold uppercase tracking-widest hover:underline"
+            >
+              Quizás más tarde
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 function EmptyState({ onBack }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
-      <div className="w-20 h-20 border-3 border-black shadow-neu-md bg-surface flex items-center justify-center mb-6">
-        <Buildings size={40} weight="bold" className="text-muted" />
+    <motion.div 
+      initial={{ opacity: 0, scale: 0.9 }}
+      animate={{ opacity: 1, scale: 1 }}
+      className="flex flex-col items-center justify-center flex-1 px-8 text-center"
+    >
+      <div className="w-24 h-24 bg-white border-4 border-black shadow-neu-md flex items-center justify-center mb-8 rotate-3">
+        <Buildings size={48} weight="bold" className="text-muted" />
       </div>
-      <h2 className="font-heading font-extrabold text-3xl mb-3">No hay más empresas</h2>
-      <p className="text-muted text-base mb-8 max-w-xs">
-        Ya viste todas las empresas en este evento. Volvé cuando haya más attendees.
+      <h2 className="font-heading font-black text-4xl mb-4 leading-tight">TODO VISTO POR AHORA</h2>
+      <p className="text-muted font-bold mb-10 max-w-xs mx-auto">
+        Has explorado todas las empresas disponibles en el evento. ¡Vuelve pronto para nuevas conexiones!
       </p>
-      <Primary onClick={onBack}>
-        ← Volver al inicio
-      </Primary>
-    </div>
+      <Secondary onClick={onBack} size="lg" className="gap-2">
+        <ArrowLeft weight="bold" />
+        VOLVER AL INICIO
+      </Secondary>
+    </motion.div>
   )
 }
 
-// ── Vista principal: SwipeDeck ─────────────────────────────────────────────────
 export default function SwipeDeck({ onBack }) {
   const [companies, setCompanies] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [matchCompany, setMatchCompany] = useState(null)
   const [savedIds, setSavedIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
-  const [eventName] = useState('LATAM Tech Summit 2026')
+  const [lastDirection, setLastDirection] = useState(0)
 
-  // Cargar empresas (mock por ahora)
   useEffect(() => {
     const timer = setTimeout(() => {
       setCompanies(MOCK_COMPANIES)
       setLoading(false)
-    }, 600)
+    }, 800)
     return () => clearTimeout(timer)
   }, [])
 
   const handleSwipe = useCallback((direction) => {
     const company = companies[currentIndex]
+    setLastDirection(direction === 'right' ? 1 : -1)
+    
     if (direction === 'right') {
       setSavedIds(prev => new Set([...prev, company.id]))
-      setMatchCompany(company)
+      // Solo mostrar match en algunas empresas para simular aleatoriedad o éxito
+      if (Math.random() > 0.3) {
+        setMatchCompany(company)
+      }
     }
+    
     setCurrentIndex(prev => prev + 1)
   }, [companies, currentIndex])
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'ArrowRight' || e.key === 'l') handleSwipe('right')
-      if (e.key === 'ArrowLeft' || e.key === 'h') handleSwipe('left')
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [handleSwipe])
-
   const currentCompany = companies[currentIndex]
-  const progress = companies.length > 0
-    ? `${currentIndex} de ${companies.length}`
-    : ''
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col" style={{ height: '100dvh', overscrollBehavior: 'none', touchAction: 'none' }}>
-      {/* Header */}
-      <div className="border-b-3 border-black px-4 py-3 flex items-center gap-3 bg-surface flex-shrink-0">
-        <Secondary size="sm" onClick={onBack} className="flex items-center gap-1.5 flex-shrink-0">
-          <ArrowLeft size={14} weight="bold" />
-          <span className="hidden sm:inline">Volver</span>
-        </Secondary>
+    <div className="h-screen bg-bg flex flex-col overflow-hidden font-sans">
+      {/* Dynamic Header */}
+      <header className="border-b-4 border-black px-6 py-4 flex items-center justify-between bg-white z-50">
+        <button 
+          onClick={onBack}
+          className="w-10 h-10 border-3 border-black shadow-neu-xs flex items-center justify-center hover:bg-primary transition-colors"
+        >
+          <ArrowLeft size={20} weight="bold" />
+        </button>
 
-        <div className="flex-1 text-center min-w-0">
-          <div className="font-heading font-bold text-sm truncate">{eventName}</div>
-          <div className="text-xs text-muted">{progress}</div>
-        </div>
-
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <Heart size={16} weight="bold" className="text-accent" />
-          <span className="font-heading font-extrabold text-base">{savedIds.size}</span>
-          <span className="text-xs text-muted font-heading hidden sm:inline">saved</span>
-        </div>
-      </div>
-
-      {/* Deck — toma todo el espacio disponible */}
-      <div className="flex-1 flex flex-col px-4 pt-4 pb-3 overflow-hidden">
-        {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center">
-            <div className="w-14 h-14 border-3 border-black bg-surface shadow-neu-md flex items-center justify-center mb-3 animate-pulse">
-              <Buildings size={28} weight="bold" className="text-muted" />
-            </div>
-            <p className="font-heading font-semibold text-muted text-sm">Cargando empresas...</p>
+        <div className="flex flex-col items-center">
+          <span className="font-heading font-black text-sm tracking-tight">LATAM TECH SUMMIT</span>
+          <div className="flex items-center gap-1">
+            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+            <span className="text-[10px] font-mono font-bold uppercase text-muted">Explorando ahora</span>
           </div>
-        ) : currentCompany ? (
-          <>
-            {/* Company card — flexible height, fills available space */}
-            <div className="flex-1 min-h-0">
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="w-10 h-10 border-3 border-black bg-accent shadow-neu-xs flex items-center justify-center relative">
+            <Heart size={20} weight="fill" className="text-white" />
+            <div className="absolute -top-2 -right-2 bg-white border-2 border-black text-[9px] font-black px-1 min-w-[18px] text-center">
+              {savedIds.size}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Container */}
+      <main className="flex-1 relative flex flex-col p-3 md:p-6 max-w-xl mx-auto w-full" style={{ perspective: '1000px' }}>
+        
+        {/* Counter */}
+        {!loading && currentCompany && (
+          <div className="flex justify-center mb-2">
+            <div className="bg-black text-white px-3 py-0.5 text-[9px] font-mono font-bold">
+              {currentIndex + 1} / {companies.length}
+            </div>
+          </div>
+        )}
+
+        {/* Stack Container */}
+        <div className="flex-1 relative grid items-center justify-center" style={{ overflow: 'visible' }}>
+          <AnimatePresence custom={lastDirection}>
+            {loading ? (
+              <motion.div 
+                key="loading"
+                exit={{ opacity: 0 }}
+                className="flex flex-col items-center gap-4"
+              >
+                <div className="w-16 h-16 border-4 border-black shadow-neu-md bg-white flex items-center justify-center animate-spin">
+                  <Sparkle size={32} weight="bold" className="text-primary" />
+                </div>
+                <p className="font-heading font-black text-muted animate-pulse">BUSCANDO EMPRESAS...</p>
+              </motion.div>
+            ) : currentCompany ? (
               <CompanyCard
                 key={currentCompany.id}
                 company={currentCompany}
                 onSwipe={handleSwipe}
+                index={currentIndex}
+                total={companies.length}
               />
-            </div>
-
-            {/* Action buttons — siempre visibles en bottom */}
-            <div className="flex items-center gap-3 pt-3 pb-1 flex-shrink-0">
-              <Accent circle onClick={() => handleSwipe('left')} style={{ touchAction: 'manipulation' }}>
-                <X size={22} weight="bold" />
-              </Accent>
-
-              <Primary onClick={() => handleSwipe('right')} className="flex-1" style={{ touchAction: 'manipulation' }}>
-                <Heart size={20} weight="bold" />
-                <span className="text-base">Connect</span>
-              </Primary>
-            </div>
-          </>
-        ) : (
-          <EmptyState onBack={onBack} />
-        )}
-      </div>
-
-      {/* Saved companies preview */}
-      {!loading && savedIds.size > 0 && (
-        <div className="border-t-3 border-black px-4 py-3 bg-surface flex-shrink-0 max-h-40 overflow-y-auto">
-          <h3 className="font-heading font-bold text-sm mb-2 flex items-center gap-1.5">
-            <Heart size={14} weight="bold" className="text-accent" />
-            Tus matches ({savedIds.size})
-          </h3>
-          <div className="space-y-1.5">
-            {[...savedIds].map(id => {
-              const c = companies.find(x => x.id === id)
-              if (!c) return null
-              return (
-                <div key={id} className="flex items-center gap-2.5">
-                  <div className="w-8 h-8 border-2 border-black shadow-neu-sm bg-primary flex items-center justify-center flex-shrink-0">
-                    <span className="font-heading font-black text-xs">{c.logoLetter}</span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="font-heading font-bold text-xs truncate">{c.name}</div>
-                    <div className="text-[10px] text-muted">{c.location}</div>
-                  </div>
-                  <Heart size={12} weight="bold" className="text-accent flex-shrink-0" />
-                </div>
-              )
-            })}
-          </div>
+            ) : (
+              <EmptyState onBack={onBack} />
+            )}
+          </AnimatePresence>
         </div>
-      )}
 
-      {/* Match modal */}
-      {matchCompany && (
-        <MatchModal
-          company={matchCompany}
-          onClose={() => setMatchCompany(null)}
-        />
-      )}
+        {/* Interaction Controls */}
+        {!loading && currentCompany && (
+          <div className="flex items-center justify-center gap-6 py-3 md:py-4 flex-shrink-0">
+            {/* PASS Button */}
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: -10 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => handleSwipe('left')}
+              className="w-14 h-14 bg-white border-3 border-black shadow-neu-sm flex items-center justify-center text-accent hover:bg-accent hover:text-white transition-colors"
+              title="Pasar"
+            >
+              <X size={28} weight="bold" />
+            </motion.button>
+
+            {/* SUPER CONNECT (Center) */}
+            <motion.button
+              whileHover={{ scale: 1.1, y: -5 }}
+              whileTap={{ scale: 0.9 }}
+              className="w-14 h-14 bg-primary border-3 border-black shadow-neu-sm flex items-center justify-center text-text hover:bg-white transition-colors"
+              title="Super Connect"
+            >
+              <Star size={28} weight="fill" />
+            </motion.button>
+
+            {/* CONNECT Button */}
+            <motion.button
+              whileHover={{ scale: 1.1, rotate: 10 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => handleSwipe('right')}
+              className="w-16 h-16 bg-secondary border-3 border-black shadow-neu-md flex items-center justify-center text-white hover:bg-white hover:text-secondary transition-colors group"
+              title="Conectar"
+            >
+              <Heart size={32} weight="fill" className="group-hover:scale-125 transition-transform" />
+            </motion.button>
+          </div>
+        )}
+      </main>
+
+      {/* Match Overlay */}
+      <AnimatePresence>
+        {matchCompany && (
+          <MatchModal 
+            company={matchCompany} 
+            onClose={() => setMatchCompany(null)} 
+          />
+        )}
+      </AnimatePresence>
+
+      <style>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #000;
+          border-radius: 0px;
+        }
+      `}</style>
     </div>
   )
 }
