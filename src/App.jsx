@@ -10,7 +10,9 @@ import {
   Plus,
   SquaresFour,
   Heart,
+  Users,
 } from '@phosphor-icons/react'
+import SwipeDeck from './views/SwipeDeck'
 
 const API_BASE = '/api'
 
@@ -40,7 +42,7 @@ const API = {
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
-function Nav({ onDashboard }) {
+function Nav({ onDashboard, onSwipe }) {
   return (
     <nav className="flex items-center justify-between px-6 md:px-12 py-5 border-b-3 border-black bg-bg">
       {/* Logo */}
@@ -57,9 +59,17 @@ function Nav({ onDashboard }) {
         <a href="#generar" className="nav-link hidden sm:block">Generar QR</a>
         <button
           onClick={onDashboard}
-          className="btn-secondary text-sm py-2 px-5"
+          className="btn-secondary text-sm py-2 px-5 hidden md:flex items-center gap-2"
         >
-          Dashboard →
+          <Users size={16} weight="bold" />
+          Dashboard
+        </button>
+        <button
+          onClick={onSwipe}
+          className="btn-primary text-sm py-2 px-5 flex items-center gap-2"
+        >
+          <SquaresFour size={16} weight="bold" />
+          Explorar
         </button>
       </div>
     </nav>
@@ -309,7 +319,7 @@ function Footer() {
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({ onBack }) {
+function Dashboard({ onBack, onSwipe }) {
   const [stats, setStats] = useState({ qrs: 0, scans: 0 })
   const [qrs, setQrs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -354,11 +364,17 @@ function Dashboard({ onBack }) {
       <div className="max-w-5xl mx-auto px-6 md:px-12 py-12">
 
         {/* Title */}
-        <div className="mb-10">
-          <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-2">
-            Tu Dashboard
-          </h1>
-          <p className="text-muted">Gestión de códigos QR y estadísticas</p>
+        <div className="mb-10 flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-2">
+              Tu Dashboard
+            </h1>
+            <p className="text-muted">Gestión de códigos QR y estadísticas</p>
+          </div>
+          <button onClick={onSwipe} className="btn-primary flex items-center gap-2 mt-auto">
+            <SquaresFour size={18} weight="bold" />
+            Explorar empresas
+          </button>
         </div>
 
         {/* Stats */}
@@ -430,13 +446,13 @@ function Dashboard({ onBack }) {
 
 // ── App ──────────────────────────────────────────────────────────────────────
 export default function App() {
-  const [view, setView] = useState('landing')
+  const [view, setView] = useState('landing') // landing | dashboard | swipe
 
   return (
     <div className="min-h-screen bg-bg">
       {view === 'landing' && (
         <>
-          <Nav onDashboard={() => setView('dashboard')} />
+          <Nav onDashboard={() => setView('dashboard')} onSwipe={() => setView('swipe')} />
           <Hero />
           <Features />
           <QRGenerator />
@@ -444,7 +460,10 @@ export default function App() {
         </>
       )}
       {view === 'dashboard' && (
-        <Dashboard onBack={() => setView('landing')} />
+        <Dashboard onBack={() => setView('landing')} onSwipe={() => setView('swipe')} />
+      )}
+      {view === 'swipe' && (
+        <SwipeDeck onBack={() => setView('landing')} />
       )}
     </div>
   )
