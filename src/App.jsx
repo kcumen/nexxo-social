@@ -1,23 +1,31 @@
 import { useState, useEffect } from 'react'
 
-// ── Mock API (vibe: we don't care about backend yet) ─────────────────────────
-const API = {
-  async generateQR(companyName) {
-    await sleep(800)
-    const id = Math.random().toString(36).slice(2, 10)
-    return {
-      id,
-      url: `https://nexxo.social/r/${id}`,
-      qr: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://nexxo.social/r/${id}`,
-    }
-  },
-  async getScans() {
-    await sleep(300)
-    return Math.floor(Math.random() * 240) + 12
-  }
+const API_BASE = '/api'
+
+async function request(method, path, body) {
+  const res = await fetch(`${API_BASE}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body ? JSON.stringify(body) : undefined,
+  })
+  if (!res.ok) throw new Error(`API error ${res.status}`)
+  return res.json()
 }
 
-function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+const API = {
+  async generateQR(companyName) {
+    return request('POST', '/qr/generate', { name: companyName })
+  },
+  async getStats() {
+    return request('GET', '/stats')
+  },
+  async getQRs() {
+    return request('GET', '/qr/list')
+  },
+  async getCompany(slug) {
+    return request('GET', `/company/${slug}`)
+  },
+}
 
 // ── Components ───────────────────────────────────────────────────────────────
 function Nav() {
@@ -171,7 +179,13 @@ export default function App() {
 }
 
 function Dashboard({ onBack }) {
-  const [scans] = useState(Math.floor(Math.random() * 240) + 12)
+  const [stats, setStats] = useState({ qrs: 0, scans: 0 })
+  const [qrs, setQrs] = useState([])
+
+  useEffect(() => {
+    API.getStats().then(setStats).catch(() => {})
+    API.getQRs ? API.getQRs().then(setQrs).catch(() => {}) : setQrs([])
+  }, [])
 
   return (
     <div className="min-h-screen bg-bg">
@@ -184,9 +198,9 @@ function Dashboard({ onBack }) {
         <p className="text-muted mb-10">Gestión de códigos QR y estadísticas</p>
         <div className="grid md:grid-cols-3 gap-5 mb-10">
           {[
-            { label: 'QRs activos', value: '3', icon: '📱' },
-            { label: 'Escaneos totales', value: scans, icon: '👁️' },
-            { label: 'Perfiles guardados', value: Math.floor(scans * 0.4), icon: '❤️' },
+          { label: 'QRs activos', value: stats.qrs, icon: '📱' },
+          { label: 'Escaneos totales', value: stats.scans, icon: '👁️' },
+          { label: 'Perfiles guardados', value: Math.floor(stats.scans * 0.4), icon: '❤️' },
           ].map(m => (
             <div key={m.label} className="card p-6 text-center">
               <span className="text-3xl">{m.icon}</span>
@@ -197,17 +211,24 @@ function Dashboard({ onBack }) {
         </div>
         <h2 className="text-xl font-semibold mb-4">Tus códigos QR</h2>
         <div className="space-y-3">
-          {['Launch party', 'Oficina central', 'Tarjeta digital'].map((label, i) => (
-            <div key={label} className="card p-4 flex items-center justify-between">
+          {qrs.length === 0 && (
+            <p className="text-muted text-sm">No tienes códigos QR todavía. Generá uno desde la home.</p>
+          )}
+          {qrs.map(qr => (
+            <div key={qr.id || qr.shortCode} className="card p-4 flex items-center justify-between">
               <div className="flex items-center gap-4">
-                <img src={`https://api.qrserver.com/v1/create-qr-code/?size=64x64&data=https://nexxo.social/r/${i}abc`} alt="QR" className="w-12 h-12 rounded-lg" />
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=64x64&data=https://nexxo.social/r/${qr.shortCode}`}
+                  alt="QR"
+                  className="w-12 h-12 rounded-lg"
+                />
                 <div>
-                  <div className="font-medium">{label}</div>
-                  <div className="text-xs text-muted">nexxo.social/r/{i}abc</div>
+                  <div className="font-medium">{qr.name}</div>
+                  <div className="text-xs text-muted">nexxo.social/r/{qr.shortCode}</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-sm font-semibold">{Math.floor(Math.random() * 80) + 5}</div>
+                <div className="text-sm font-semibold">{qr.scans || 0}</div>
                 <div className="text-xs text-muted">escaneos</div>
               </div>
             </div>

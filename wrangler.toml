@@ -1,12 +1,32 @@
-name = "nexxo-social"
+name = "nexxo-social-api"
+main = "src/worker.ts"
 compatibility_date = "2026-04-25"
-pages_build_output_dir = "dist"
 
+# Local development
+[dev]
+port = 8787
+local_protocol = "http"
+
+# D1 database (local dev uses .db file)
 [[d1_databases]]
 binding = "DB"
 database_name = "nexxo-social-db"
-database_id = "YOUR_DB_ID_HERE"
+database_id = "local-dev-db"
 
+# R2 bucket (local dev uses .assets/ folder)
 [[r2_buckets]]
 binding = "ASSETS"
 bucket_name = "nexxo-social-assets"
+
+# Prod (override with --env production)
+[env.production]
+name = "nexxo-social-api"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "nexxo-social-db"
+database_id = "YOUR_PROD_DB_ID"
+
+[[env.production.r2_buckets]]
+binding = "ASSETS"
+bucket_name = "nexxo-social-prod"
