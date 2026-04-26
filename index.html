@@ -3,15 +3,254 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>nexxo.social</title>
+    <title>nexxo.social — Networking cuántico</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-      body { background: #0a0a0f; color: #e0e0e0; font-family: 'Inter', system-ui, sans-serif; }
-      .gradient-text { background: linear-gradient(135deg, #6c63ff, #ff6b6b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-      .card { background: #13131a; border: 1px solid #1e1e2e; border-radius: 16px; }
-      .btn-primary { background: linear-gradient(135deg, #6c63ff, #ff6b6b); }
-      .btn-primary:hover { opacity: 0.9; }
-      .glow { box-shadow: 0 0 40px rgba(108, 99, 255, 0.15); }
+      :root {
+        --color-bg: #FAFAF9;
+        --color-surface: #FFFFFF;
+        --color-primary: #FACC15;
+        --color-secondary: #3B82F6;
+        --color-accent: #EF4444;
+        --color-success: #22C55E;
+        --color-text: #0A0A0A;
+        --color-text-muted: #525252;
+        --color-border: #000000;
+        --color-shadow: #000000;
+      }
+
+      * { border-radius: 0 !important; }
+
+      body {
+        background: var(--color-bg);
+        color: var(--color-text);
+        font-family: 'DM Sans', system-ui, sans-serif;
+      }
+
+      h1, h2, h3, h4, h5, h6 {
+        font-family: 'Outfit', sans-serif;
+      }
+
+      .font-mono {
+        font-family: 'JetBrains Mono', monospace;
+      }
+
+      /* ── Neubrutalism Components ── */
+      .card {
+        background: var(--color-surface);
+        border: 3px solid var(--color-border);
+        box-shadow: 6px 6px 0 var(--color-shadow);
+        padding: 24px;
+        transition: all 150ms ease;
+      }
+      .card:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: 8px 8px 0 var(--color-shadow);
+      }
+
+      .btn-primary {
+        background: var(--color-primary);
+        border: 3px solid var(--color-border);
+        box-shadow: 4px 4px 0 var(--color-shadow);
+        padding: 12px 24px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 150ms ease;
+        display: inline-block;
+        text-decoration: none;
+        color: var(--color-text);
+      }
+      .btn-primary:hover {
+        box-shadow: 5px 5px 0 var(--color-shadow);
+        transform: translate(-1px, -1px);
+      }
+      .btn-primary:active {
+        box-shadow: 2px 2px 0 var(--color-shadow);
+        transform: translate(2px, 2px);
+      }
+
+      .btn-secondary {
+        background: var(--color-surface);
+        border: 3px solid var(--color-border);
+        box-shadow: 4px 4px 0 var(--color-shadow);
+        padding: 12px 24px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 150ms ease;
+        display: inline-block;
+        text-decoration: none;
+        color: var(--color-text);
+      }
+      .btn-secondary:hover {
+        box-shadow: 5px 5px 0 var(--color-shadow);
+        transform: translate(-1px, -1px);
+      }
+      .btn-secondary:active {
+        box-shadow: 2px 2px 0 var(--color-shadow);
+        transform: translate(2px, 2px);
+      }
+
+      .btn-accent {
+        background: var(--color-accent);
+        border: 3px solid var(--color-border);
+        box-shadow: 4px 4px 0 var(--color-shadow);
+        padding: 12px 24px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 150ms ease;
+        display: inline-block;
+        text-decoration: none;
+        color: #fff;
+      }
+      .btn-accent:hover {
+        box-shadow: 5px 5px 0 var(--color-shadow);
+        transform: translate(-1px, -1px);
+      }
+      .btn-accent:active {
+        box-shadow: 2px 2px 0 var(--color-shadow);
+        transform: translate(2px, 2px);
+      }
+
+      .input-neubrut {
+        background: var(--color-surface);
+        border: 3px solid var(--color-border);
+        box-shadow: 4px 4px 0 var(--color-shadow);
+        padding: 12px 16px;
+        font-family: 'DM Sans', sans-serif;
+        font-size: 1rem;
+        width: 100%;
+        outline: none;
+        color: var(--color-text);
+        transition: all 150ms ease;
+      }
+      .input-neubrut:focus {
+        outline: 3px solid var(--color-primary);
+        outline-offset: 0px;
+      }
+      .input-neubrut::placeholder {
+        color: var(--color-text-muted);
+      }
+
+      .tag {
+        background: var(--color-primary);
+        border: 2px solid var(--color-border);
+        box-shadow: 2px 2px 0 var(--color-shadow);
+        padding: 4px 12px;
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        display: inline-block;
+      }
+
+      .tag-blue {
+        background: var(--color-secondary);
+        color: #fff;
+      }
+
+      .tag-red {
+        background: var(--color-accent);
+        color: #fff;
+      }
+
+      /* ── Section reveal animation ── */
+      .reveal {
+        opacity: 0;
+        transform: translateY(24px);
+        animation: reveal 400ms ease forwards;
+      }
+      @keyframes reveal {
+        to { opacity: 1; transform: translateY(0); }
+      }
+
+      /* ── Nav link ── */
+      .nav-link {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 600;
+        font-size: 0.9rem;
+        color: var(--color-text-muted);
+        text-decoration: none;
+        transition: color 150ms ease;
+      }
+      .nav-link:hover {
+        color: var(--color-text);
+      }
+
+      /* ── Stat number ── */
+      .stat-number {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 800;
+        font-size: 3rem;
+        line-height: 1;
+      }
+
+      /* ── QR card ── */
+      .qr-card {
+        background: var(--color-surface);
+        border: 3px solid var(--color-border);
+        box-shadow: 6px 6px 0 var(--color-shadow);
+        padding: 20px;
+      }
+
+      /* ── Feature icon box ── */
+      .feature-icon {
+        background: var(--color-primary);
+        border: 3px solid var(--color-border);
+        box-shadow: 3px 3px 0 var(--color-shadow);
+        width: 56px;
+        height: 56px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        flex-shrink: 0;
+      }
+
+      /* ── Divider ── */
+      .divider {
+        border: none;
+        border-top: 3px solid var(--color-border);
+      }
+
+      /* ── Dashboard stat card ── */
+      .stat-card {
+        background: var(--color-surface);
+        border: 3px solid var(--color-border);
+        box-shadow: 6px 6px 0 var(--color-border);
+        padding: 24px;
+        text-align: center;
+      }
+      .stat-card:hover {
+        transform: translate(-2px, -2px);
+        box-shadow: 8px 8px 0 var(--color-border);
+      }
+
+      /* ── QR list row ── */
+      .qr-row {
+        background: var(--color-surface);
+        border: 3px solid var(--color-border);
+        box-shadow: 4px 4px 0 var(--color-border);
+        padding: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        transition: all 150ms ease;
+      }
+      .qr-row:hover {
+        transform: translate(-1px, -1px);
+        box-shadow: 5px 5px 0 var(--color-border);
+      }
     </style>
   </head>
   <body>
