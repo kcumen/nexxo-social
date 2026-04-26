@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Networking corporativo a través del escaneo de códigos QR conectados a perfiles corporativos.",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "vite build",
     "preview": "vite preview",
     "deploy": "npm run build && wrangler pages deploy dist"

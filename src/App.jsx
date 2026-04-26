@@ -6,6 +6,7 @@ import {
   Link,
   useNavigate,
   useParams,
+  useLocation,
   Navigate
 } from 'react-router-dom'
 import {
@@ -48,7 +49,12 @@ function CustomQRCode({ value, size = 128, logoUrl = '/nexxo-logo.png', noPaddin
 }
 
 const API_BASE = '/api'
-const getRedirectUrl = (shortCode) => `${window.location.origin}/r/${shortCode}`
+const TAILSCALE_IP = '100.89.246.51'
+const getRedirectUrl = (shortCode) => {
+  // En desarrollo, usamos la IP de Tailscale para que otros dispositivos puedan entrar
+  const port = window.location.port ? `:${window.location.port}` : ''
+  return `http://${TAILSCALE_IP}${port}/r/${shortCode}`
+}
 
 async function request(method, path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -1208,35 +1214,82 @@ function ClaimPage() {
   )
 }
 
-// ── Main App ─────────────────────────────────────────────────────────────────
-export default function App() {
-  const [user, setUser] = useState(() => API.getCurrentUser())
+// ── QR Redirector ────────────────────────────────────────────────────────────
+function QRRedirector() {
+  const { code } = useParams()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    const checkQR = async () => {
+      try {
+        const res = await API.getQR(code)
+        if (res.status === 'blank') {
+          navigate(`/claim/${code}`, { replace: true })
+        } else if (res.status === 'active' && res.company_id) {
+          // Si está activo, redirigir al perfil de la empresa (mocked por ahora o vía slug)
+          // En una app real buscaríamos el slug de la empresa
+          navigate(`/dashboard`, { replace: true }) 
+        } else {
+          navigate('/', { replace: true })
+        }
+      } catch (err) {
+        console.error('Redirect error:', err)
+        navigate('/', { replace: true })
+      }
+    }
+    checkQR()
+  }, [code, navigate])
 
   return (
-    <BrowserRouter>
-      <div className="flex flex-col min-h-screen">
-        <Navbar user={user} onLogout={() => setUser(null)} />
-        <main className="flex-1 pt-24 pb-20 md:pb-0">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/swipe" element={<SwipeDeck onBack={() => window.history.back()} />} />
-            <Route path="/claim/:code" element={<ClaimPage />} />
-            <Route path="/login" element={
-              user && user.role === 'admin' 
-                ? <Navigate to="/admin" replace /> 
-                : <LoginPage onLogin={(u) => setUser(u)} />
-            } />
-            <Route path="/admin" element={
-              user && user.role === 'admin' 
-                ? <AdminDashboard user={user} onLogout={() => setUser(null)} /> 
-                : <Navigate to="/login" replace />
-            } />
-            <Route path="/claim" element={<Navigate to="/" replace />} />
-          </Routes>
-        </main>
-        <MobileNav user={user} />
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-black border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="font-heading font-bold animate-pulse">Redirigiendo...</p>
       </div>
+    </div>
+  )
+}
+
+// ── Main App ─────────────────────────────────────────────────────────────────
+function AppContent() {
+  const [user, setUser] = useState(() => API.getCurrentUser())
+  const location = useLocation()
+  
+  // Ocultar nav en rutas de onboarding/registro para enfoque total
+  const hideNav = location.pathname.startsWith('/claim/') || location.pathname.startsWith('/r/')
+
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Navbar user={user} onLogout={() => setUser(null)} />
+      <main className={`flex-1 ${hideNav ? 'pt-0' : 'pt-24 pb-20 md:pb-0'}`}>
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/swipe" element={<SwipeDeck onBack={() => window.history.back()} />} />
+          <Route path="/claim/:code" element={<ClaimPage />} />
+          <Route path="/r/:code" element={<QRRedirector />} />
+          <Route path="/login" element={
+            user && user.role === 'admin' 
+              ? <Navigate to="/admin" replace /> 
+              : <LoginPage onLogin={(u) => setUser(u)} />
+          } />
+          <Route path="/admin" element={
+            user && user.role === 'admin' 
+              ? <AdminDashboard user={user} onLogout={() => setUser(null)} /> 
+              : <Navigate to="/login" replace />
+          } />
+          <Route path="/claim" element={<Navigate to="/" replace />} />
+        </Routes>
+      </main>
+      {!hideNav && <MobileNav user={user} />}
+    </div>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   )
 }
