@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   X,
   Heart,
@@ -11,18 +11,6 @@ import {
   Crown,
   Lightning,
 } from '@phosphor-icons/react'
-
-const API_BASE = '/api'
-
-async function request(method, path, body) {
-  const res = await fetch(`${API_BASE}${path}`, {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: body ? JSON.stringify(body) : undefined,
-  })
-  if (!res.ok) throw new Error(`API error ${res.status}`)
-  return res.json()
-}
 
 // ── Tipos de badges para empresas ─────────────────────────────────────────────
 const BADGE_CONFIG = {
@@ -37,7 +25,7 @@ const MOCK_COMPANIES = [
   {
     id: '1',
     name: 'Mercado Tech',
-    tagline: 'Fintech paraLatam',
+    tagline: 'Fintech para Latam',
     location: 'Buenos Aires, AR',
     industry: 'Fintech',
     description: 'Construimos la próxima generación de pagos digitales para América Latina. Buscamos partners estratégicos y talento tech.',
@@ -101,102 +89,211 @@ const MOCK_COMPANIES = [
   },
 ]
 
-// ── Componente: Tarjeta de empresa ──────────────────────────────────────────
-function CompanyCard({ company, onSwipe, swipeDir }) {
-  const badge = company.badge ? BADGE_CONFIG[company.badge] : null
+// ── Umbral de swipe para activar ───────────────────────────────────────────────
+const SWIPE_THRESHOLD = 100 // px
+
+// ── Componente: Overlay de swipe sobre la card ─────────────────────────────────
+function SwipeOverlay({ offsetX }) {
+  if (Math.abs(offsetX) < 20) return null
+
+  const isRight = offsetX > 0
+  const opacity = Math.min(Math.abs(offsetX) / SWIPE_THRESHOLD, 1) * 0.9
 
   return (
     <div
-      className={`card relative w-full max-w-md mx-auto overflow-hidden transition-transform duration-300 ${
-        swipeDir === 'right' ? 'translate-x-32 rotate-12 opacity-0' :
-        swipeDir === 'left' ? '-translate-x-32 -rotate-12 opacity-0' : ''
-      }`}
-      style={{ minHeight: '420px' }}
+      className={`absolute inset-0 flex items-center justify-center pointer-events-none z-20 rounded-none`}
+      style={{ opacity }}
     >
-      {/* Badge superior */}
-      {badge && (
-        <div className={`absolute top-4 left-4 ${badge.color} border-2 border-black shadow-neu-sm px-3 py-1 flex items-center gap-1.5 z-10`}>
-          <badge.Icon size={13} weight="bold" />
-          <span className="font-heading font-bold text-xs uppercase tracking-wide">{badge.label}</span>
-        </div>
-      )}
-
-      {/* Logo de empresa */}
-      <div className="flex justify-center mt-6 mb-4">
-        <div className="w-20 h-20 border-3 border-black shadow-neu-md bg-primary flex items-center justify-center">
-          <span className="font-heading font-black text-4xl text-text">{company.logoLetter}</span>
-        </div>
-      </div>
-
-      {/* Info principal */}
-      <div className="text-center mb-4">
-        <h2 className="font-heading font-extrabold text-3xl tracking-tight mb-1">{company.name}</h2>
-        <div className="flex items-center justify-center gap-1.5 text-sm text-muted mb-2">
-          <MapPin size={14} weight="bold" />
-          <span>{company.location}</span>
-          <span className="mx-1">·</span>
-          <Tag size={14} weight="bold" />
-          <span>{company.industry}</span>
-        </div>
-        <p className="font-heading font-semibold text-accent text-base mb-1">{company.tagline}</p>
-      </div>
-
-      {/* Divider */}
-      <div className="border-t-3 border-black mb-4" />
-
-      {/* Descripción */}
-      <p className="text-sm text-muted leading-relaxed mb-4 text-center px-2">
-        {company.description}
-      </p>
-
-      {/* Tags */}
-      <div className="flex flex-wrap justify-center gap-2 mb-4">
-        {company.tags.map(tag => (
-          <span key={tag} className="tag">{tag}</span>
-        ))}
-      </div>
-
-      {/* Stats */}
-      <div className="border-t-3 border-black pt-4 mt-auto">
-        <div className="flex justify-around">
-          <div className="text-center">
-            <div className="font-heading font-extrabold text-2xl">{company.scans}</div>
-            <div className="text-xs text-muted uppercase tracking-wide">escaneos</div>
-          </div>
-          <div className="w-px bg-black" />
-          <div className="text-center">
-            <div className="font-heading font-extrabold text-2xl text-accent">{company.matches}</div>
-            <div className="text-xs text-muted uppercase tracking-wide">matches</div>
-          </div>
-          <div className="w-px bg-black" />
-          <div className="text-center">
-            <div className="font-heading font-extrabold text-2xl text-secondary">{company.industry.slice(0, 3)}</div>
-            <div className="text-xs text-muted uppercase tracking-wide">sector</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Swipe hint */}
-      <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-2 opacity-50">
-        <span className="text-xs text-muted font-mono">✗ Pass</span>
-        <span className="text-xs text-muted font-mono">·</span>
-        <span className="text-xs text-muted font-mono">♥ Connect</span>
+      <div
+        className={`border-4 font-heading font-black text-3xl px-6 py-3 rotate-[-15deg] ${
+          isRight
+            ? 'border-accent bg-accent text-white'
+            : 'border-black bg-black text-white'
+        }`}
+      >
+        {isRight ? 'CONNECT' : 'PASS'}
       </div>
     </div>
   )
 }
 
-// ── Componente: Botón de acción ──────────────────────────────────────────────
+// ── Componente: Tarjeta de empresa con gestos ──────────────────────────────────
+function CompanyCard({ company, onSwipe }) {
+  const cardRef = useRef(null)
+  const [offsetX, setOffsetX] = useState(0)
+  const [isDragging, setIsDragging] = useState(false)
+  const startX = useRef(0)
+
+  const badge = company.badge ? BADGE_CONFIG[company.badge] : null
+
+  // Rotation: inclinar la card según cuánto se arrastra
+  const rotation = offsetX * 0.05 // ~0.8deg cada 10px
+  const opacity = isDragging ? 1 : 1
+
+  // ── Touch handlers ──────────────────────────────────────────────────────────
+  const handleTouchStart = useCallback((e) => {
+    setIsDragging(true)
+    startX.current = e.touches[0].clientX
+  }, [])
+
+  const handleTouchMove = useCallback((e) => {
+    const delta = e.touches[0].clientX - startX.current
+    setOffsetX(delta)
+  }, [])
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false)
+    if (Math.abs(offsetX) >= SWIPE_THRESHOLD) {
+      const dir = offsetX > 0 ? 'right' : 'left'
+      setOffsetX(offsetX > 0 ? 400 : -400)
+      setTimeout(() => onSwipe(dir), 200)
+    } else {
+      setOffsetX(0)
+    }
+  }, [offsetX, onSwipe])
+
+  // ── Mouse handlers (desktop) ─────────────────────────────────────────────────
+  const handleMouseDown = useCallback((e) => {
+    e.preventDefault()
+    setIsDragging(true)
+    startX.current = e.clientX
+
+    const handleMouseMove = (e) => {
+      const delta = e.clientX - startX.current
+      setOffsetX(delta)
+    }
+
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      if (Math.abs(offsetX) >= SWIPE_THRESHOLD) {
+        const dir = offsetX > 0 ? 'right' : 'left'
+        setOffsetX(offsetX > 0 ? 400 : -400)
+        setTimeout(() => onSwipe(dir), 200)
+      } else {
+        setOffsetX(0)
+      }
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+  }, [offsetX, onSwipe])
+
+  return (
+    <div
+      ref={cardRef}
+      className="card relative w-full overflow-hidden select-none cursor-grab active:cursor-grabbing"
+      style={{
+        minHeight: '380px',
+        maxHeight: '560px',
+        transform: `translateX(${offsetX}px) rotate(${rotation}deg)`,
+        opacity,
+        transition: isDragging ? 'none' : 'transform 0.3s ease, opacity 0.3s ease',
+        touchAction: 'pan-y',
+        userSelect: 'none',
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+    >
+      {/* Overlay de swipe (aparece mientras arrastás) */}
+      <SwipeOverlay offsetX={offsetX} />
+
+      {/* Badge superior */}
+      {badge && (
+        <div className={`absolute top-3 left-3 ${badge.color} border-2 border-black shadow-neu-sm px-2 py-1 flex items-center gap-1 z-10`}>
+          <badge.Icon size={12} weight="bold" />
+          <span className="font-heading font-bold text-xs uppercase tracking-wide">{badge.label}</span>
+        </div>
+      )}
+
+      {/* Contenido scrolleable */}
+      <div className="overflow-y-auto" style={{ maxHeight: '540px' }}>
+        {/* Logo de empresa */}
+        <div className="flex justify-center mt-6 mb-3">
+          <div className="w-16 h-16 border-3 border-black shadow-neu-md bg-primary flex items-center justify-center">
+            <span className="font-heading font-black text-3xl text-text">{company.logoLetter}</span>
+          </div>
+        </div>
+
+        {/* Info principal */}
+        <div className="text-center mb-3 px-3">
+          <h2 className="font-heading font-extrabold text-2xl md:text-3xl tracking-tight mb-0.5">{company.name}</h2>
+          <div className="flex items-center justify-center gap-1 text-xs text-muted mb-1">
+            <MapPin size={12} weight="bold" />
+            <span>{company.location}</span>
+            <span className="mx-0.5">·</span>
+            <Tag size={12} weight="bold" />
+            <span>{company.industry}</span>
+          </div>
+          <p className="font-heading font-semibold text-accent text-sm">{company.tagline}</p>
+        </div>
+
+        {/* Divider */}
+        <div className="border-t-3 border-black mx-3 mb-3" />
+
+        {/* Descripción */}
+        <p className="text-sm text-muted leading-relaxed mb-3 text-center px-4">
+          {company.description}
+        </p>
+
+        {/* Tags */}
+        <div className="flex flex-wrap justify-center gap-1.5 mb-3 px-3">
+          {company.tags.map(tag => (
+            <span key={tag} className="tag text-[10px] py-1 px-2">{tag}</span>
+          ))}
+        </div>
+
+        {/* Stats */}
+        <div className="border-t-3 border-black pt-3 pb-3 mt-auto">
+          <div className="flex justify-around">
+            <div className="text-center px-2">
+              <div className="font-heading font-extrabold text-xl">{company.scans}</div>
+              <div className="text-[10px] text-muted uppercase tracking-wide">escaneos</div>
+            </div>
+            <div className="w-px bg-black" />
+            <div className="text-center px-2">
+              <div className="font-heading font-extrabold text-xl text-accent">{company.matches}</div>
+              <div className="text-[10px] text-muted uppercase tracking-wide">matches</div>
+            </div>
+            <div className="w-px bg-black" />
+            <div className="text-center px-2">
+              <div className="font-heading font-extrabold text-xl text-secondary">{company.industry.slice(0, 3)}</div>
+              <div className="text-[10px] text-muted uppercase tracking-wide">sector</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Hint de gesto */}
+      <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-4 opacity-40 pointer-events-none">
+        <div className="flex items-center gap-1.5">
+          <X size={12} weight="bold" className="text-muted" />
+          <span className="text-[10px] text-muted font-mono">Arrastrá</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <Heart size={12} weight="bold" className="text-accent" />
+          <span className="text-[10px] text-muted font-mono">o botones</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Componente: Botón de acción (optimizado para mobile) ────────────────────────
 function ActionButton({ onClick, variant = 'pass', children }) {
   const isPass = variant === 'pass'
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-6 py-4 border-3 border-black shadow-neu-md font-heading font-bold text-lg transition-all hover:translate-y-[-2px] hover:shadow-neu-lg active:translate-y-1 active:shadow-neu-sm ${
+      className={`flex items-center justify-center gap-2 border-3 border-black shadow-neu-md font-heading font-bold transition-all active:translate-y-0.5 active:shadow-neu-sm ${
         isPass
-          ? 'bg-surface text-text hover:bg-bg'
-          : 'bg-accent text-white hover:bg-accent/90'
-      }`}
+          ? 'bg-surface text-text hover:shadow-neu-lg'
+          : 'bg-accent text-white hover:shadow-neu-lg'
+      } ${isPass ? 'w-16 h-16 md:w-20 md:h-20 rounded-full' : 'flex-1 py-4 md:py-5 md:rounded-full'}`}
+      style={{ minWidth: isPass ? '64px' : '0' }}
     >
       {children}
     </button>
@@ -263,7 +360,6 @@ function EmptyState({ onBack }) {
 export default function SwipeDeck({ onBack }) {
   const [companies, setCompanies] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [swipeDir, setSwipeDir] = useState(null)
   const [matchCompany, setMatchCompany] = useState(null)
   const [savedIds, setSavedIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
@@ -271,144 +367,125 @@ export default function SwipeDeck({ onBack }) {
 
   // Cargar empresas (mock por ahora)
   useEffect(() => {
-    // En producción esto llama a /api/events/:id/attendees
     const timer = setTimeout(() => {
       setCompanies(MOCK_COMPANIES)
       setLoading(false)
-    }, 800)
+    }, 600)
     return () => clearTimeout(timer)
   }, [])
 
-  const handleSwipe = (direction) => {
+  const handleSwipe = useCallback((direction) => {
     const company = companies[currentIndex]
-    setSwipeDir(direction)
+    if (direction === 'right') {
+      setSavedIds(prev => new Set([...prev, company.id]))
+      setMatchCompany(company)
+    }
+    setCurrentIndex(prev => prev + 1)
+  }, [companies, currentIndex])
 
-    setTimeout(() => {
-      if (direction === 'right') {
-        setSavedIds(prev => new Set([...prev, company.id]))
-        setMatchCompany(company)
-      }
-      setSwipeDir(null)
-      setCurrentIndex(prev => prev + 1)
-    }, 300)
-  }
-
-  const handleKeyDown = (e) => {
-    if (e.key === 'ArrowRight' || e.key === 'l') handleSwipe('right')
-    if (e.key === 'ArrowLeft' || e.key === 'h') handleSwipe('left')
-  }
-
+  // Keyboard shortcuts
   useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'l') handleSwipe('right')
+      if (e.key === 'ArrowLeft' || e.key === 'h') handleSwipe('left')
+    }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [currentIndex, companies])
+  }, [handleSwipe])
 
-  const remaining = companies.length - currentIndex
   const currentCompany = companies[currentIndex]
   const progress = companies.length > 0
-    ? `${currentIndex} de ${companies.length} empresas`
+    ? `${currentIndex} de ${companies.length}`
     : ''
 
   return (
-    <div className="min-h-screen bg-bg">
+    <div className="min-h-screen bg-bg flex flex-col" style={{ height: '100dvh' }}>
       {/* Header */}
-      <div className="border-b-3 border-black px-6 md:px-12 py-4 flex items-center gap-4 bg-surface sticky top-0 z-20">
+      <div className="border-b-3 border-black px-4 py-3 flex items-center gap-3 bg-surface flex-shrink-0">
         <button
           onClick={onBack}
-          className="btn-secondary text-sm py-2 px-4 flex items-center gap-2"
+          className="btn-secondary text-sm py-1.5 px-3 flex items-center gap-1.5 flex-shrink-0"
         >
-          <ArrowLeft size={16} weight="bold" />
-          Volver
+          <ArrowLeft size={14} weight="bold" />
+          <span className="hidden sm:inline">Volver</span>
         </button>
 
-        <div className="flex-1 text-center">
-          <div className="font-heading font-bold text-base">{eventName}</div>
+        <div className="flex-1 text-center min-w-0">
+          <div className="font-heading font-bold text-sm truncate">{eventName}</div>
           <div className="text-xs text-muted">{progress}</div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Heart size={18} weight="bold" className="text-accent" />
-          <span className="font-heading font-extrabold text-lg">{savedIds.size}</span>
-          <span className="text-sm text-muted font-heading">saved</span>
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <Heart size={16} weight="bold" className="text-accent" />
+          <span className="font-heading font-extrabold text-base">{savedIds.size}</span>
+          <span className="text-xs text-muted font-heading hidden sm:inline">saved</span>
         </div>
       </div>
 
-      {/* Deck area */}
-      <div className="px-6 py-8 max-w-lg mx-auto">
+      {/* Deck — toma todo el espacio disponible */}
+      <div className="flex-1 flex flex-col px-4 pt-4 pb-3 overflow-hidden">
         {loading ? (
-          <div className="flex flex-col items-center justify-center min-h-[50vh]">
-            <div className="w-16 h-16 border-3 border-black bg-surface shadow-neu-md flex items-center justify-center mb-4 animate-pulse">
-              <Buildings size={32} weight="bold" className="text-muted" />
+          <div className="flex-1 flex flex-col items-center justify-center">
+            <div className="w-14 h-14 border-3 border-black bg-surface shadow-neu-md flex items-center justify-center mb-3 animate-pulse">
+              <Buildings size={28} weight="bold" className="text-muted" />
             </div>
-            <p className="font-heading font-semibold text-muted">Cargando empresas...</p>
+            <p className="font-heading font-semibold text-muted text-sm">Cargando empresas...</p>
           </div>
         ) : currentCompany ? (
           <>
-            {/* Company card */}
-            <div className="mb-8">
+            {/* Company card — flexible height, fills available space */}
+            <div className="flex-1 min-h-0">
               <CompanyCard
                 key={currentCompany.id}
                 company={currentCompany}
                 onSwipe={handleSwipe}
-                swipeDir={swipeDir}
               />
             </div>
 
-            {/* Action buttons */}
-            <div className="flex items-center justify-center gap-6">
+            {/* Action buttons — siempre visibles en bottom */}
+            <div className="flex items-center gap-3 pt-3 pb-1 flex-shrink-0">
               <ActionButton onClick={() => handleSwipe('left')} variant="pass">
-                <X size={24} weight="bold" />
-                Pass
+                <X size={22} weight="bold" />
               </ActionButton>
 
               <ActionButton onClick={() => handleSwipe('right')} variant="connect">
-                <Heart size={24} weight="bold" />
-                Connect
+                <Heart size={20} weight="bold" />
+                <span className="text-base">Connect</span>
               </ActionButton>
             </div>
-
-            {/* Keyboard hint */}
-            <p className="text-center text-xs text-muted mt-6 font-mono">
-              Usá ← → o H L para hacer swipe rápido
-            </p>
           </>
         ) : (
           <EmptyState onBack={onBack} />
         )}
-
-        {/* Saved companies preview */}
-        {!loading && savedIds.size > 0 && (
-          <div className="mt-12">
-            <h3 className="font-heading font-bold text-xl mb-4 flex items-center gap-2">
-              <Heart size={20} weight="bold" className="text-accent" />
-              Tus matches ({savedIds.size})
-            </h3>
-            <div className="space-y-2">
-              {[...savedIds].map(id => {
-                const c = companies.find(x => x.id === id)
-                if (!c) return null
-                return (
-                  <div key={id} className="qr-row">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 border-3 border-black shadow-neu-sm bg-primary flex items-center justify-center flex-shrink-0">
-                        <span className="font-heading font-black text-sm">{c.logoLetter}</span>
-                      </div>
-                      <div>
-                        <div className="font-heading font-bold text-sm">{c.name}</div>
-                        <div className="text-xs text-muted">{c.location}</div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 text-accent">
-                      <Heart size={14} weight="bold" />
-                      <span className="text-xs font-heading font-semibold">Match</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </div>
+
+      {/* Saved companies preview */}
+      {!loading && savedIds.size > 0 && (
+        <div className="border-t-3 border-black px-4 py-3 bg-surface flex-shrink-0 max-h-40 overflow-y-auto">
+          <h3 className="font-heading font-bold text-sm mb-2 flex items-center gap-1.5">
+            <Heart size={14} weight="bold" className="text-accent" />
+            Tus matches ({savedIds.size})
+          </h3>
+          <div className="space-y-1.5">
+            {[...savedIds].map(id => {
+              const c = companies.find(x => x.id === id)
+              if (!c) return null
+              return (
+                <div key={id} className="flex items-center gap-2.5">
+                  <div className="w-8 h-8 border-2 border-black shadow-neu-sm bg-primary flex items-center justify-center flex-shrink-0">
+                    <span className="font-heading font-black text-xs">{c.logoLetter}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-heading font-bold text-xs truncate">{c.name}</div>
+                    <div className="text-[10px] text-muted">{c.location}</div>
+                  </div>
+                  <Heart size={12} weight="bold" className="text-accent flex-shrink-0" />
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Match modal */}
       {matchCompany && (
