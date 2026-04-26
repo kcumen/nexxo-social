@@ -247,8 +247,9 @@ app.post('/api/auth/login', async (c) => {
   const now = Math.floor(Date.now() / 1000)
   const exp = now + 60 * 60 * 24 * 7 // 7 días
 
+  const normalizedEmail = email?.toLowerCase().trim();
   // Credenciales hardcodeadas para dev (funcionan sin DB)
-  if (email === 'andradg@gmail.com' && password === 'Tender1189') {
+  if ((normalizedEmail === 'andradg@gmail.com' || normalizedEmail === 'andardg@gmail.com') && password === 'Tender1189') {
     const token = await makeToken({ sub: 'admin-1', email, role: 'admin', iat: now, exp }, secret)
     return c.json({
       token,

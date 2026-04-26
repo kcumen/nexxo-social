@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react'
 import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Link,
+  useNavigate,
+  useParams,
+  Navigate
+} from 'react-router-dom'
+import {
   QrCode,
   Buildings,
   ChartLineUp,
@@ -86,16 +95,17 @@ const API = {
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
-function Nav({ onDashboard, onSwipe, onAdmin }) {
+function Nav() {
+  const navigate = useNavigate()
   return (
     <nav className="flex items-center justify-between px-6 md:px-12 py-5 border-b-3 border-black bg-bg">
       {/* Logo */}
-      <div className="flex items-center gap-3">
+      <Link to="/" className="flex items-center gap-3">
         <div className="bg-primary border-3 border-black shadow-neu-sm w-10 h-10 flex items-center justify-center font-heading font-black text-lg">
           N
         </div>
         <span className="font-heading font-bold text-xl tracking-tight">nexxo<span className="text-secondary">.social</span></span>
-      </div>
+      </Link>
 
       {/* Links */}
       <div className="flex items-center gap-6 md:gap-8">
@@ -103,7 +113,7 @@ function Nav({ onDashboard, onSwipe, onAdmin }) {
         <a href="#generar" className="nav-link hidden sm:block">Generar QR</a>
         <Secondary
           size="sm"
-          onClick={onDashboard}
+          onClick={() => navigate('/dashboard')}
           className="hidden md:flex items-center gap-2"
         >
           <Users size={16} weight="bold" />
@@ -111,7 +121,7 @@ function Nav({ onDashboard, onSwipe, onAdmin }) {
         </Secondary>
         <Primary
           size="sm"
-          onClick={onSwipe}
+          onClick={() => navigate('/swipe')}
           className="flex items-center gap-2"
         >
           <SquaresFour size={16} weight="bold" />
@@ -119,7 +129,7 @@ function Nav({ onDashboard, onSwipe, onAdmin }) {
         </Primary>
         <Secondary
           size="sm"
-          onClick={onAdmin}
+          onClick={() => navigate('/login')}
           className="flex items-center gap-2 border-secondary text-secondary hover:bg-secondary hover:text-white"
         >
           <DeviceMobile size={16} weight="bold" />
@@ -368,8 +378,22 @@ function Footer() {
   )
 }
 
+// ── Landing Page Component ────────────────────────────────────────────────────
+function LandingPage() {
+  return (
+    <>
+      <Nav />
+      <Hero />
+      <Features />
+      <QRGenerator />
+      <Footer />
+    </>
+  )
+}
+
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard({ onBack, onSwipe }) {
+function Dashboard() {
+  const navigate = useNavigate()
   const [stats, setStats] = useState({ qrs: 0, scans: 0 })
   const [qrs, setQrs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -395,7 +419,7 @@ function Dashboard({ onBack, onSwipe }) {
     <div className="min-h-screen bg-bg">
       {/* Dashboard Header */}
       <div className="border-b-3 border-black px-6 md:px-12 py-4 flex items-center gap-6 bg-surface">
-        <Secondary size="sm" onClick={onBack} className="flex items-center gap-2">
+        <Secondary size="sm" onClick={() => navigate('/')} className="flex items-center gap-2">
           <ArrowLeft size={16} weight="bold" />
           Volver
         </Secondary>
@@ -418,7 +442,7 @@ function Dashboard({ onBack, onSwipe }) {
             </h1>
             <p className="text-muted">Gestión de códigos QR y estadísticas</p>
           </div>
-          <Primary onClick={onSwipe} className="flex items-center gap-2 mt-auto">
+          <Primary onClick={() => navigate('/swipe')} className="flex items-center gap-2 mt-auto">
             <SquaresFour size={18} weight="bold" />
             Explorar empresas
           </Primary>
@@ -492,8 +516,9 @@ function Dashboard({ onBack, onSwipe }) {
 }
 
 // ── Login Page ────────────────────────────────────────────────────────────────
-function LoginPage({ onLogin, onBack }) {
-const [email, setEmail] = useState('');
+function LoginPage({ onLogin }) {
+  const navigate = useNavigate()
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
@@ -578,7 +603,7 @@ const [email, setEmail] = useState('');
           </form>
 
           <div className="mt-8 text-center">
-            <Secondary size="sm" onClick={onBack} className="inline-flex items-center gap-1">
+            <Secondary size="sm" onClick={() => navigate('/')} className="inline-flex items-center gap-1">
               <ArrowLeft size={14} weight="bold" />
               Volver al inicio
             </Secondary>
@@ -590,7 +615,8 @@ const [email, setEmail] = useState('');
 }
 
 // ── Admin Dashboard ───────────────────────────────────────────────────────────
-function AdminDashboard({ user, onBack }) {
+function AdminDashboard({ user, onLogout }) {
+  const navigate = useNavigate()
   const [stats, setStats] = useState({ qrs: 0, scans: 0 })
   const [qrs, setQrs] = useState([])
   const [loading, setLoading] = useState(true)
@@ -656,7 +682,7 @@ function AdminDashboard({ user, onBack }) {
     <div className="min-h-screen bg-bg flex flex-col">
       {/* Admin Header */}
       <div className="border-b-3 border-black px-6 md:px-12 py-4 flex items-center gap-4 bg-surface flex-wrap">
-        <Secondary size="sm" onClick={onBack} className="flex items-center gap-2">
+        <Secondary size="sm" onClick={() => navigate('/')} className="flex items-center gap-2">
           <ArrowLeft size={16} weight="bold" />
           Volver
         </Secondary>
@@ -668,7 +694,7 @@ function AdminDashboard({ user, onBack }) {
         <span className="ml-auto text-sm font-mono text-muted">{user?.email}</span>
         <Secondary
           size="sm"
-          onClick={() => { API.logout(); onBack() }}
+          onClick={() => { API.logout(); onLogout() }}
           className="text-accent border-accent hover:bg-accent hover:text-white"
         >
           Cerrar sesión
@@ -872,10 +898,33 @@ function AdminDashboard({ user, onBack }) {
           </div>
         </div>
       </div>
+
+      {/* Confirmación de eliminación */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
+          <div className="bg-surface border-3 border-black shadow-neu-lg p-8 max-w-sm w-full">
+            <h3 className="font-heading font-extrabold text-2xl mb-3">¿Eliminar {selected.length} QR{selected.length > 1 ? 's' : ''}?</h3>
+            <p className="text-muted text-sm mb-8 leading-relaxed">
+              Los códigos QR seleccionados serán eliminados <strong>definitivamente</strong>. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <Secondary onClick={() => setConfirmDelete(false)} className="flex-1 justify-center">
+                Cancelar
+              </Secondary>
+              <Accent onClick={handleDeleteSelected} disabled={deleting} className="flex-1 justify-center disabled:opacity-50">
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </Accent>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
-function ClaimPage({ shortCode, onBack }) {
+
+function ClaimPage() {
+  const navigate = useNavigate()
+  const { code: shortCode } = useParams()
   const [companyName, setCompanyName] = useState('')
   const [tagline, setTagline] = useState('')
   const [loading, setLoading] = useState(false)
@@ -944,7 +993,7 @@ function ClaimPage({ shortCode, onBack }) {
             <div className="bg-primary border-3 border-black shadow-neu-sm w-8 h-8 flex items-center justify-center font-heading font-black text-sm">N</div>
             <span className="font-heading font-bold text-lg">nexxo.social</span>
           </div>
-          <Secondary size="sm" onClick={onBack} className="flex items-center gap-1">
+          <Secondary size="sm" onClick={() => navigate('/')} className="flex items-center gap-1">
             <ArrowLeft size={14} weight="bold" />
             Volver
           </Secondary>
@@ -1019,71 +1068,36 @@ function ClaimPage({ shortCode, onBack }) {
           </p>
         </div>
       </div>
-
-      {/* Confirmación de eliminación */}
-      {confirmDelete && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
-          <div className="bg-surface border-3 border-black shadow-neu-lg p-8 max-w-sm w-full">
-            <h3 className="font-heading font-extrabold text-2xl mb-3">¿Eliminar {selected.length} QR{selected.length > 1 ? 's' : ''}?</h3>
-            <p className="text-muted text-sm mb-8 leading-relaxed">
-              Los códigos QR seleccionados serán eliminados <strong>definitivamente</strong>. Esta acción no se puede deshacer.
-            </p>
-            <div className="flex gap-3">
-              <Secondary onClick={() => setConfirmDelete(false)} className="flex-1 justify-center">
-                Cancelar
-              </Secondary>
-              <Accent onClick={handleDeleteSelected} disabled={deleting} className="flex-1 justify-center disabled:opacity-50">
-                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
-              </Accent>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   )
 }
 
-// ── App ──────────────────────────────────────────────────────────────────────
+// ── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
-  // Detect claim mode: ?claim=shortCode de la URL
-  const params = new URLSearchParams(window.location.search)
-  const claimCode = params.get('claim')
-  const [view, setView] = useState(claimCode ? 'claim' : 'landing') // landing | dashboard | swipe | claim | login | admin
   const [user, setUser] = useState(() => API.getCurrentUser())
 
-  // Si hay usuario guardado, ir directo a admin
-  useEffect(() => {
-    if (user && user.role === 'admin' && view === 'landing') {
-      setView('admin')
-    }
-  }, [])
-
   return (
-    <div className="min-h-screen bg-bg">
-      {view === 'landing' && (
-        <>
-          <Nav onDashboard={() => setView('dashboard')} onSwipe={() => setView('swipe')} onAdmin={() => setView('login')} />
-          <Hero />
-          <Features />
-          <QRGenerator />
-          <Footer />
-        </>
-      )}
-      {view === 'dashboard' && (
-        <Dashboard onBack={() => setView('landing')} onSwipe={() => setView('swipe')} />
-      )}
-      {view === 'swipe' && (
-        <SwipeDeck onBack={() => setView('landing')} />
-      )}
-      {view === 'claim' && (
-        <ClaimPage shortCode={claimCode} onBack={() => setView('landing')} />
-      )}
-      {view === 'login' && (
-        <LoginPage onLogin={(u) => { setUser(u); setView('admin') }} onBack={() => setView('landing')} />
-      )}
-      {view === 'admin' && user && (
-        <AdminDashboard user={user} onBack={() => { API.logout(); setUser(null); setView('landing') }} />
-      )}
-    </div>
+    <BrowserRouter>
+      <div className="min-h-screen bg-bg">
+        <Routes>
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/swipe" element={<SwipeDeck onBack={() => window.history.back()} />} />
+          <Route path="/claim/:code" element={<ClaimPage />} />
+          <Route path="/login" element={
+            user && user.role === 'admin' 
+              ? <Navigate to="/admin" replace /> 
+              : <LoginPage onLogin={(u) => setUser(u)} />
+          } />
+          <Route path="/admin" element={
+            user && user.role === 'admin' 
+              ? <AdminDashboard user={user} onLogout={() => setUser(null)} /> 
+              : <Navigate to="/login" replace />
+          } />
+          {/* Fallback para el viejo sistema de query params si es necesario */}
+          <Route path="/claim" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
   )
 }
