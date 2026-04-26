@@ -70,7 +70,7 @@ async function request(method, path, body) {
   return res.json()
 }
 
-const API = {
+export const API = {
   async generateQR(companyName) {
     return request('POST', '/qr/generate', { name: companyName })
   },
@@ -112,6 +112,12 @@ const API = {
     localStorage.setItem('nexxo_token', data.token)
     localStorage.setItem('nexxo_user', JSON.stringify(data.user))
     return data.user
+  },
+  async saveSwipe(companyId) {
+    return request('POST', '/swipe/save', { companyId })
+  },
+  async getUserStats() {
+    return request('GET', '/user/stats')
   },
   logout() {
     localStorage.removeItem('nexxo_token')
@@ -507,6 +513,11 @@ function Dashboard({ user }) {
         >
           <div className="flex items-center gap-3 mb-2">
             <span className="tag tag-blue">Empresa Verificada</span>
+            {user?.is_premium && (
+              <span className="bg-[#FFD700] text-black border-2 border-black px-2 py-0.5 text-[10px] font-black uppercase tracking-widest flex items-center gap-1">
+                <Crown size={12} weight="fill" /> Nexxo Pro
+              </span>
+            )}
             <span className="text-muted font-mono text-xs">ID: {user?.id?.slice(0,8)}</span>
           </div>
           <h1 className="font-heading font-black text-5xl md:text-6xl mb-4 leading-tight">
@@ -702,7 +713,7 @@ function LoginPage({ onLogin }) {
           <div className="w-16 h-16 bg-secondary border-3 border-black shadow-neu-sm mx-auto mb-6 flex items-center justify-center">
             <DeviceMobile size={32} weight="bold" color="#fff" />
           </div>
-          <h1 className="font-heading font-extrabold text-3xl mb-2">Panel Admin</h1>
+          <h1 className="font-heading font-extrabold text-3xl mb-2">Iniciar Sesión</h1>
           <p className="text-muted text-sm">
             {step === 1 
               ? 'Ingresá tu email para recibir un código' 
@@ -1384,12 +1395,12 @@ function AppContent() {
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/dashboard" element={<Dashboard user={user} />} />
-          <Route path="/swipe" element={<SwipeDeck onBack={() => window.history.back()} />} />
+          <Route path="/swipe" element={<SwipeDeck user={user} onBack={() => window.history.back()} />} />
           <Route path="/claim/:code" element={<ClaimPage onUpdateUser={(u) => setUser(u)} />} />
           <Route path="/r/:code" element={<QRRedirector />} />
           <Route path="/login" element={
-            user && user.role === 'admin' 
-              ? <Navigate to="/admin" replace /> 
+            user 
+              ? <Navigate to={user.role === 'admin' ? '/admin' : '/dashboard'} replace /> 
               : <LoginPage onLogin={(u) => setUser(u)} />
           } />
           <Route path="/admin" element={

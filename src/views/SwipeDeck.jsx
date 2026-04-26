@@ -16,6 +16,7 @@ import {
   Users,
 } from '@phosphor-icons/react'
 import { Primary, Secondary, Accent } from '../components/Buttons'
+import { API } from '../App'
 
 // ── Configuration ─────────────────────────────────────────────────────────────
 const BADGE_CONFIG = {
@@ -369,36 +370,123 @@ function EmptyState({ onBack }) {
   )
 }
 
-export default function SwipeDeck({ onBack }) {
+function UpgradeModal({ onClose }) {
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[110] p-6"
+    >
+      <motion.div 
+        initial={{ scale: 0.9, y: 20 }}
+        animate={{ scale: 1, y: 0 }}
+        className="card max-w-sm w-full bg-white border-4 border-black p-8 text-center"
+      >
+        <div className="w-20 h-20 mx-auto bg-[#FFD700] border-4 border-black shadow-neu flex items-center justify-center mb-6 -rotate-6">
+          <Crown size={40} weight="fill" className="text-black" />
+        </div>
+
+        <h2 className="font-heading font-black text-3xl mb-4 leading-tight">
+          LÍMITE ALCANZADO
+        </h2>
+        
+        <p className="text-sm font-bold text-muted mb-8 leading-relaxed">
+          Has agotado tus 10 swipes gratuitos. En eventos presenciales, puedes seguir conectando <span className="text-black">escaneando directamente los QRs</span> de las empresas.
+        </p>
+
+        <div className="bg-bg border-2 border-black p-4 mb-8 text-left">
+          <p className="text-[10px] font-black uppercase tracking-widest mb-3 text-secondary">Beneficios Pro:</p>
+          <ul className="space-y-2">
+            <li className="flex items-center gap-2 text-xs font-bold">
+              <Check weight="bold" className="text-success" /> Swipes ilimitados
+            </li>
+            <li className="flex items-center gap-2 text-xs font-bold">
+              <Check weight="bold" className="text-success" /> Perfil destacado
+            </li>
+            <li className="flex items-center gap-2 text-xs font-bold">
+              <Check weight="bold" className="text-success" /> Analytics en tiempo real
+            </li>
+          </ul>
+        </div>
+
+        <div className="space-y-3">
+          <Primary onClick={() => {}} size="lg" className="w-full justify-center bg-[#FFD700]">
+            MEJORAR A PRO →
+          </Primary>
+          <button 
+            onClick={onClose}
+            className="text-xs font-mono font-bold uppercase tracking-widest hover:underline"
+          >
+            Continuar gratis (Solo QR)
+          </button>
+        </div>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+export default function SwipeDeck({ user, onBack }) {
   const [companies, setCompanies] = useState([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [matchCompany, setMatchCompany] = useState(null)
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false)
+  const [swipesCount, setSwipesCount] = useState(0)
   const [savedIds, setSavedIds] = useState(new Set())
   const [loading, setLoading] = useState(true)
   const [lastDirection, setLastDirection] = useState(0)
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setCompanies(MOCK_COMPANIES)
-      setLoading(false)
-    }, 800)
-    return () => clearTimeout(timer)
+    // Fetch initial stats and companies
+    const loadData = async () => {
+      try {
+        const [stats, qrs] = await Promise.all([
+          API.getUserStats().catch(() => ({ swipes: 0 })),
+          new Promise(resolve => setTimeout(() => resolve(MOCK_COMPANIES), 800))
+        ])
+        setSwipesCount(stats.swipes || 0)
+        setCompanies(qrs)
+      } catch (e) {
+        console.error(e)
+        setCompanies(MOCK_COMPANIES)
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadData()
   }, [])
 
-  const handleSwipe = useCallback((direction) => {
+  const handleSwipe = useCallback(async (direction) => {
     const company = companies[currentIndex]
-    setLastDirection(direction === 'right' ? 1 : -1)
     
     if (direction === 'right') {
+      // Verificar límites
+      if (!user?.is_premium && swipesCount >= 10) {
+        setShowUpgradeModal(true)
+        return
+      }
+
+      setLastDirection(1)
       setSavedIds(prev => new Set([...prev, company.id]))
-      // Solo mostrar match en algunas empresas para simular aleatoriedad o éxito
+      setSwipesCount(prev => prev + 1)
+
+      // Guardar en backend
+      try {
+        await API.saveSwipe(company.id)
+      } catch (e) {
+        console.error("Error saving swipe:", e)
+      }
+
+      // Simular match
       if (Math.random() > 0.3) {
         setMatchCompany(company)
       }
+    } else {
+      setLastDirection(-1)
     }
     
     setCurrentIndex(prev => prev + 1)
-  }, [companies, currentIndex])
+  }, [companies, currentIndex, user, swipesCount])
 
   const currentCompany = companies[currentIndex]
 
@@ -422,10 +510,17 @@ export default function SwipeDeck({ onBack }) {
         </div>
 
         <div className="flex items-center gap-2">
+          {!user?.is_premium && (
+            <div className="hidden sm:flex items-center gap-2 bg-bg border-2 border-black px-3 py-1 font-mono text-[10px] font-bold">
+              <span className={swipesCount >= 10 ? 'text-accent' : 'text-text'}>
+                SWIPES: {swipesCount}/10
+              </span>
+            </div>
+          )}
           <div className="w-10 h-10 border-3 border-black bg-accent shadow-neu-xs flex items-center justify-center relative">
             <Heart size={20} weight="fill" className="text-white" />
             <div className="absolute -top-2 -right-2 bg-white border-2 border-black text-[9px] font-black px-1 min-w-[18px] text-center">
-              {savedIds.size}
+              {swipesCount}
             </div>
           </div>
         </div>
@@ -515,6 +610,11 @@ export default function SwipeDeck({ onBack }) {
           <MatchModal 
             company={matchCompany} 
             onClose={() => setMatchCompany(null)} 
+          />
+        )}
+        {showUpgradeModal && (
+          <UpgradeModal 
+            onClose={() => setShowUpgradeModal(false)} 
           />
         )}
       </AnimatePresence>

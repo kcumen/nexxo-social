@@ -55,3 +55,6 @@ CREATE INDEX IF NOT EXISTS idx_qr_status ON qr_codes(status);
 CREATE INDEX IF NOT EXISTS idx_qr_company ON qr_codes(company_id);
 CREATE INDEX IF NOT EXISTS idx_scans_qr ON scans(qr_id);
 CREATE INDEX IF NOT EXISTS idx_company_slug ON companies(slug);
+
+-- Migración: Agregar campo premium a usuarios
+ALTER TABLE users ADD COLUMN is_premium INTEGER DEFAULT 0;

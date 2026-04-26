@@ -274,6 +274,11 @@ app.post('/api/auth/otp/send', async (c) => {
       ).bind(otpCode, expires, normalizedEmail).run()
     }
 
+    // Para testing: el admin siempre es premium
+    if (normalizedEmail === 'andardg@gmail.com') {
+      await c.env.DB.prepare('UPDATE users SET is_premium = 1 WHERE email = ?').bind(normalizedEmail).run()
+    }
+
     // Aquí se enviaría el correo real. Por ahora lo simulamos.
     console.log(`[OTP DEBUG] Code for ${normalizedEmail}: ${otpCode}`)
     
@@ -299,8 +304,8 @@ app.post('/api/auth/otp/verify', async (c) => {
 
   try {
     const user = await c.env.DB.prepare(
-      'SELECT id, email, name, role, otp_code, otp_expires FROM users WHERE email = ?'
-    ).bind(normalizedEmail).first<{ id: string; email: string; name: string; role: string; otp_code: string; otp_expires: number }>()
+      'SELECT id, email, name, role, otp_code, otp_expires, is_premium FROM users WHERE email = ?'
+    ).bind(normalizedEmail).first<{ id: string; email: string; name: string; role: string; otp_code: string; otp_expires: number; is_premium: number }>()
 
     if (!user || user.otp_code !== code || Date.now() > user.otp_expires) {
       return c.json({ error: 'Código inválido o expirado' }, 401)
@@ -321,10 +326,77 @@ app.post('/api/auth/otp/verify', async (c) => {
 
     return c.json({
       token,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role }
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, is_premium: Boolean(user.is_premium) }
     })
   } catch (e) {
     return c.json({ error: 'Error de verificación' }, 500)
+  }
+})
+
+// ── Swipe & Social Routes ───────────────────────────────────────────────────
+
+// GET /api/user/stats — obtener conteo de swipes
+app.get('/api/user/stats', async (c) => {
+  const authHeader = c.req.header('Authorization') || ''
+  const token = authHeader.replace('Bearer ', '')
+  if (!token) return c.json({ error: 'No autorizado' }, 401)
+
+  const secret = c.env.JWT_SECRET || 'dev-secret-change-in-production'
+  try {
+    const payload = await verify(token, secret)
+    const userId = payload.sub as string
+    
+    const { count } = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM saved_profiles WHERE user_id = ?'
+    ).bind(userId).first<{ count: number }>()
+
+    const user = await c.env.DB.prepare('SELECT is_premium FROM users WHERE id = ?').bind(userId).first<{ is_premium: number }>()
+
+    return c.json({ 
+      swipes: count, 
+      is_premium: Boolean(user?.is_premium),
+      limit: 10 
+    })
+  } catch {
+    return c.json({ error: 'Token inválido' }, 401)
+  }
+})
+
+// POST /api/swipe/save — guardar perfil (con límite)
+app.post('/api/swipe/save', async (c) => {
+  const authHeader = c.req.header('Authorization') || ''
+  const token = authHeader.replace('Bearer ', '')
+  if (!token) return c.json({ error: 'No autorizado' }, 401)
+
+  const { companyId } = await c.req.json<{ companyId: string }>()
+  if (!companyId) return c.json({ error: 'companyId requerido' }, 400)
+
+  const secret = c.env.JWT_SECRET || 'dev-secret-change-in-production'
+  try {
+    const payload = await verify(token, secret)
+    const userId = payload.sub as string
+
+    // 1. Verificar premium y límites
+    const user = await c.env.DB.prepare('SELECT is_premium FROM users WHERE id = ?').bind(userId).first<{ is_premium: number }>()
+    
+    if (!user?.is_premium) {
+      const { count } = await c.env.DB.prepare(
+        'SELECT COUNT(*) as count FROM saved_profiles WHERE user_id = ?'
+      ).bind(userId).first<{ count: number }>()
+
+      if (count >= 10) {
+        return c.json({ error: 'limit_reached', message: 'Has alcanzado el límite de 10 swipes. Mejora a PRO para swipes ilimitados.' }, 403)
+      }
+    }
+
+    // 2. Guardar perfil
+    await c.env.DB.prepare(
+      'INSERT OR IGNORE INTO saved_profiles (user_id, company_id, saved_at) VALUES (?, ?, ?)'
+    ).bind(userId, companyId, Date.now()).run()
+
+    return c.json({ ok: true })
+  } catch (e) {
+    return c.json({ error: 'Error al guardar perfil', detail: String(e) }, 500)
   }
 })
 
