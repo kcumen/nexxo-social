@@ -23,6 +23,28 @@ import {
 } from '@phosphor-icons/react'
 import { Primary, Secondary, Accent } from './components/Buttons'
 import SwipeDeck from './views/SwipeDeck'
+import { QRCodeSVG } from 'qrcode.react'
+import { motion, AnimatePresence } from 'framer-motion'
+
+function CustomQRCode({ value, size = 128, logoUrl = '/nexxo-logo.png', noPadding = false, noShadow = false }) {
+  return (
+    <div className={`bg-white border-2 border-black inline-block ${noPadding ? 'p-1' : 'p-2'} ${noShadow ? '' : 'shadow-neu-xs'}`}>
+      <QRCodeSVG
+        value={value}
+        size={size}
+        level="H"
+        imageSettings={logoUrl ? {
+          src: logoUrl,
+          x: undefined,
+          y: undefined,
+          height: size * 0.22,
+          width: size * 0.22,
+          excavate: true,
+        } : undefined}
+      />
+    </div>
+  )
+}
 
 const API_BASE = '/api'
 
@@ -489,10 +511,9 @@ function Dashboard() {
               {qrs.map(qr => (
                 <div key={qr.id || qr.shortCode} className="qr-row">
                   <div className="flex items-center gap-4">
-                    <img
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=64x64&data=${encodeURIComponent(qr.url || `https://nexxo.social/r/${qr.shortCode}`)}`}
-                      alt="QR"
-                      className="w-14 h-14 border-3 border-black flex-shrink-0"
+                    <CustomQRCode 
+                      value={qr.url || `https://nexxo.social/r/${qr.shortCode}`} 
+                      size={64} 
                     />
                     <div>
                       <div className="font-heading font-bold text-base">{qr.name}</div>
@@ -754,12 +775,12 @@ function AdminDashboard({ user, onLogout }) {
                   <p className="font-heading font-bold text-sm mb-3">QRs generados:</p>
                   <div className="grid grid-cols-5 gap-2">
                     {generated.slice(0, 10).map(qr => (
-                      <img
+                      <CustomQRCode 
                         key={qr.qrId}
-                        src={qr.qr}
-                        alt={qr.shortCode}
-                        title={qr.shortCode}
-                        className="w-full aspect-square border-2 border-black"
+                        value={`https://nexxo.social/r/${qr.shortCode}`} 
+                        size={64} 
+                        noPadding
+                        noShadow
                       />
                     ))}
                   </div>
@@ -797,25 +818,36 @@ function AdminDashboard({ user, onLogout }) {
           {/* QR List */}
           <div>
             <div className="card">
-              <div className="flex items-center justify-between mb-5">
-                <div className="flex items-center gap-3">
+              <div className="mb-5 space-y-4">
+                <div className="flex items-center justify-between">
                   <h2 className="font-heading font-bold text-2xl">Todos los QRs</h2>
-                  {selected.length > 0 && (
-                    <Accent size="sm" onClick={() => setConfirmDelete(true)} className="flex items-center gap-1">
-                      <X size={12} weight="bold" />
-                      Eliminar {selected.length}
-                    </Accent>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  {selected.length > 0 && (
-                    <span className="text-xs font-mono text-muted">{selected.length} seleccionado{selected.length > 1 ? 's' : ''}</span>
-                  )}
                   <Secondary size="sm" onClick={loadData} className="flex items-center gap-1">
                     <ArrowLeft size={14} weight="bold" className="rotate-180" />
                     Refrescar
                   </Secondary>
                 </div>
+
+                <AnimatePresence>
+                  {selected.length > 0 && (
+                    <motion.div 
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="flex items-center justify-between bg-accent/10 border-2 border-accent p-2 px-3"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="bg-accent w-2 h-2 rounded-full animate-pulse" />
+                        <span className="text-xs font-heading font-bold text-accent uppercase tracking-wider">
+                          {selected.length} seleccionado{selected.length > 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <Accent size="sm" onClick={() => setConfirmDelete(true)} className="flex items-center gap-2 h-8">
+                        <X size={14} weight="bold" />
+                        Eliminar seleccionados
+                      </Accent>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {loading ? (
@@ -868,10 +900,11 @@ function AdminDashboard({ user, onLogout }) {
                           )}
                         </button>
                       )}
-                      <img
-                        src={`https://api.qrserver.com/v1/create-qr-code/?size=48x48&data=${encodeURIComponent(`https://nexxo.social/r/${qr.short_code}`)}`}
-                        alt={qr.short_code}
-                        className="w-12 h-12 border-2 border-black flex-shrink-0"
+                      <CustomQRCode 
+                        value={`https://nexxo.social/r/${qr.short_code}`} 
+                        size={36} 
+                        noPadding 
+                        noShadow
                       />
                       <div className="flex-1 min-w-0">
                         <div className="font-heading font-bold text-sm truncate">
@@ -966,11 +999,12 @@ function ClaimPage() {
               <p className="text-muted text-sm leading-relaxed mb-6">
                 <span className="font-heading font-bold text-text">{companyName}</span> ya tiene su QR activo en nexxo.social
               </p>
-              <img
-                src={result.qr}
-                alt="Tu QR"
-                className="w-40 h-40 mx-auto border-3 border-black mb-6"
-              />
+              <div className="flex justify-center mb-6">
+                <CustomQRCode 
+                  value={result.url || `https://nexxo.social/r/${result.shortCode}`} 
+                  size={160} 
+                />
+              </div>
               <p className="font-mono text-xs text-muted break-all bg-bg p-3 border-3 border-black">
                 {result.url}
               </p>
@@ -1005,11 +1039,12 @@ function ClaimPage() {
         <div className="max-w-md w-full">
           {/* QR preview */}
           <div className="text-center mb-10">
-            <img
-              src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=https://nexxo.social/r/${shortCode}`}
-              alt="QR"
-              className="w-28 h-28 mx-auto border-3 border-black shadow-neu-md mb-4"
-            />
+            <div className="flex justify-center mb-6">
+              <CustomQRCode 
+                value={`https://nexxo.social/r/${shortCode}`} 
+                size={120} 
+              />
+            </div>
             <span className="tag tag-red mb-3">QR vacío</span>
             <h1 className="font-heading font-extrabold text-3xl md:text-4xl tracking-tight leading-tight">
               Este QR no tiene empresa asignada

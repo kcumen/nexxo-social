@@ -74,7 +74,6 @@ app.post('/api/qr/generate', async (c) => {
         qrId, shortCode,
         status: 'blank',
         url: `https://nexxo.social/r/${shortCode}`,
-        qr: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://nexxo.social/r/${shortCode}`,
       })
     }
   } catch (e) {
@@ -117,7 +116,6 @@ app.post('/api/qr/claim', async (c) => {
     shortCode,
     status: 'active',
     url: `https://nexxo.social/r/${shortCode}`,
-    qr: `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=https://nexxo.social/r/${shortCode}`,
   })
 })
 
