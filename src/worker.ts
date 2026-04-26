@@ -298,8 +298,11 @@ app.post('/api/auth/otp/verify', async (c) => {
 
   // Bypass para admin en dev
   if (normalizedEmail === 'andardg@gmail.com' && code === '011890') {
-     const token = await makeToken({ sub: 'admin-1', email: normalizedEmail, role: 'admin', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + 60*60*24*7 }, secret)
-     return c.json({ token, user: { id: 'admin-1', email: normalizedEmail, name: 'Admin', role: 'admin' } })
+     const user = await c.env.DB.prepare('SELECT id, role FROM users WHERE email = ?').bind(normalizedEmail).first<{ id: string; role: string }>()
+     if (user) {
+       const token = await makeToken({ sub: user.id, email: normalizedEmail, role: user.role, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + 60*60*24*7 }, secret)
+       return c.json({ token, user: { id: user.id, email: normalizedEmail, name: 'Admin', role: user.role, is_premium: true } })
+     }
   }
 
   try {
