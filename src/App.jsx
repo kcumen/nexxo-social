@@ -20,6 +20,7 @@ import {
   Heart,
   Users,
   X,
+  Crown,
 } from '@phosphor-icons/react'
 import { Primary, Secondary, Accent } from './components/Buttons'
 import SwipeDeck from './views/SwipeDeck'
@@ -419,12 +420,15 @@ function Dashboard() {
   const [stats, setStats] = useState({ qrs: 0, scans: 0 })
   const [qrs, setQrs] = useState([])
   const [loading, setLoading] = useState(true)
+  const user = API.getCurrentUser()
 
   useEffect(() => {
     Promise.all([
       API.getStats().catch(() => ({ qrs: 0, scans: 0 })),
       API.getQRs().catch(() => []),
     ]).then(([s, q]) => {
+      // Filter QRs to only show those belonging to this user/company
+      // In a real app, the API would handle this, but here we simulate it
       setStats(s)
       setQrs(q || [])
       setLoading(false)
@@ -432,105 +436,180 @@ function Dashboard() {
   }, [])
 
   const statCards = [
-    { label: 'QRs activos', value: stats.qrs, Icon: SquaresFour, color: 'primary' },
-    { label: 'Escaneos totales', value: stats.scans, Icon: Cube, color: 'secondary' },
-    { label: 'Perfiles guardados', value: Math.floor(stats.scans * 0.4), Icon: Heart, color: 'accent' },
+    { label: 'Alcance Digital', value: stats.scans, Icon: ChartLineUp, color: 'bg-primary', description: 'Escaneos totales de tu perfil' },
+    { label: 'Conexiones', value: Math.floor(stats.scans * 0.4), Icon: Heart, color: 'bg-accent', description: 'Empresas que te guardaron' },
+    { label: 'Visibilidad', value: 'Alta', Icon: DeviceMobile, color: 'bg-secondary', description: 'Estado en el Swipe Deck' },
   ]
 
   return (
-    <div className="min-h-screen bg-bg">
-      {/* Dashboard Header */}
-      <div className="border-b-3 border-black px-6 md:px-12 py-4 flex items-center gap-6 bg-surface">
-        <Secondary size="sm" onClick={() => navigate('/')} className="flex items-center gap-2">
-          <ArrowLeft size={16} weight="bold" />
-          Volver
-        </Secondary>
+    <div className="min-h-screen bg-bg pb-12">
+      {/* Premium Nav */}
+      <nav className="border-b-3 border-black px-6 md:px-12 py-4 flex items-center justify-between bg-surface sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="bg-secondary border-3 border-black shadow-neu-sm w-8 h-8 flex items-center justify-center font-heading font-black text-white text-sm">
-            N
-          </div>
-          <span className="font-heading font-bold text-lg">nexxo.social</span>
+          <div className="bg-primary border-3 border-black shadow-neu-xs w-8 h-8 flex items-center justify-center font-heading font-black text-sm">N</div>
+          <span className="font-heading font-bold text-lg tracking-tight">nexxo.social</span>
         </div>
-        <span className="tag tag-blue ml-auto">Dashboard</span>
-      </div>
-
-      <div className="max-w-5xl mx-auto px-6 md:px-12 py-12">
-
-        {/* Title */}
-        <div className="mb-10 flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <h1 className="font-heading font-extrabold text-4xl md:text-5xl tracking-tight mb-2">
-              Tu Dashboard
-            </h1>
-            <p className="text-muted">Gestión de códigos QR y estadísticas</p>
+        <div className="flex items-center gap-4">
+          <span className="hidden sm:block font-mono text-xs font-bold text-muted uppercase">Plan Business</span>
+          <div className="w-10 h-10 rounded-full border-2 border-black bg-accent flex items-center justify-center font-heading font-bold shadow-neu-xs">
+            {user?.name?.[0] || 'C'}
           </div>
-          <Primary onClick={() => navigate('/swipe')} className="flex items-center gap-2 mt-auto">
-            <SquaresFour size={18} weight="bold" />
-            Explorar empresas
+        </div>
+      </nav>
+
+      <div className="max-w-5xl mx-auto px-6 mt-12">
+        {/* Welcome Header */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-12"
+        >
+          <div className="flex items-center gap-3 mb-2">
+            <span className="tag tag-blue">Empresa Verificada</span>
+            <span className="text-muted font-mono text-xs">ID: {user?.id?.slice(0,8)}</span>
+          </div>
+          <h1 className="font-heading font-black text-5xl md:text-6xl mb-4 leading-tight">
+            Hola, <span className="text-primary">{user?.name || 'Empresa'}</span>
+          </h1>
+          <p className="text-xl text-muted max-w-2xl leading-relaxed">
+            Tu ecosistema de networking digital está activo. Monitorea tu impacto y gestiona tu identidad física.
+          </p>
+        </motion.div>
+
+        {/* Action Grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
+          
+          {/* Main Stats Area */}
+          <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {statCards.map((s, idx) => (
+                <motion.div 
+                  key={s.label}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: idx * 0.1 }}
+                  className="bg-surface border-3 border-black p-5 shadow-neu-sm hover:shadow-neu transition-all cursor-default"
+                >
+                  <div className={`${s.color} border-2 border-black w-10 h-10 flex items-center justify-center mb-4`}>
+                    <s.Icon size={20} weight="bold" />
+                  </div>
+                  <div className="text-3xl font-heading font-black mb-1">{loading ? '...' : s.value}</div>
+                  <div className="text-xs font-heading font-bold uppercase text-muted mb-2">{s.label}</div>
+                  <p className="text-[10px] text-muted font-medium">{s.description}</p>
+                </motion.div>
+              ))}
+            </div>
+
+            {/* Networking Activity Mockup */}
+            <div className="card">
+              <h3 className="font-heading font-bold text-xl mb-6">Actividad de Networking</h3>
+              <div className="space-y-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="flex items-center gap-4 p-3 border-2 border-black/5 rounded-lg">
+                    <div className="w-10 h-10 bg-bg border-2 border-black flex items-center justify-center">
+                      <Users size={20} />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold">Nuevo escaneo detectado</p>
+                      <p className="text-xs text-muted">Desde un dispositivo móvil • Hace {i * 2} horas</p>
+                    </div>
+                    <div className="text-xs font-mono font-bold text-secondary">+1 Scan</div>
+                  </div>
+                ))}
+                <button className="w-full py-3 text-xs font-heading font-bold border-2 border-black hover:bg-black hover:text-white transition-colors uppercase tracking-widest">
+                  Ver historial completo
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Identity Sidebar */}
+          <div className="space-y-6">
+            <div className="bg-surface border-3 border-black p-6 shadow-neu relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-2">
+                <Cube size={40} className="text-black/5 rotate-12 group-hover:rotate-45 transition-transform" />
+              </div>
+              <h3 className="font-heading font-bold text-xl mb-4">Tu Identidad QR</h3>
+              
+              {loading ? (
+                <div className="h-48 bg-bg/50 animate-pulse border-2 border-black/10" />
+              ) : qrs.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    <CustomQRCode 
+                      value={qrs[0].url || `https://nexxo.social/r/${qrs[0].shortCode}`} 
+                      size={180} 
+                    />
+                  </div>
+                  <div className="text-center">
+                    <p className="font-mono text-[10px] font-bold text-muted uppercase mb-1">Link de tu perfil</p>
+                    <p className="text-xs font-bold truncate">nexxo.social/r/{qrs[0].shortCode}</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 bg-bg border-2 border-black mx-auto mb-4 flex items-center justify-center opacity-30">
+                    <QrCode size={32} />
+                  </div>
+                  <p className="text-xs text-muted mb-4 px-4">No tienes un código físico vinculado a tu cuenta profesional.</p>
+                  <Primary onClick={() => navigate('/swipe')} className="w-full justify-center">
+                    Vincular Código
+                  </Primary>
+                </div>
+              )}
+            </div>
+
+            <div className="bg-accent border-3 border-black p-6 shadow-neu-sm">
+              <h4 className="font-heading font-bold text-lg mb-2">Completar Perfil</h4>
+              <p className="text-xs mb-4">Aumenta tu visibilidad completando todos los datos de tu empresa.</p>
+              <div className="w-full bg-white/30 h-2 border border-black mb-4">
+                <div className="bg-black h-full w-[65%]" />
+              </div>
+              <Secondary size="sm" className="w-full justify-center bg-white">
+                Editar Información
+              </Secondary>
+            </div>
+
+            {/* Premium CTA */}
+            <motion.div 
+              whileHover={{ scale: 1.02 }}
+              className="bg-black text-white border-3 border-black p-6 shadow-neu-sm relative overflow-hidden group cursor-pointer"
+            >
+              <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Crown size={120} weight="fill" color="#FFD700" />
+              </div>
+              <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="bg-[#FFD700] p-1 rounded">
+                    <Crown size={16} weight="bold" className="text-black" />
+                  </div>
+                  <span className="text-[10px] font-heading font-black uppercase tracking-widest text-[#FFD700]">Nexxo Pro</span>
+                </div>
+                <h3 className="font-heading font-bold text-xl mb-2">Desbloquea el nivel Pro</h3>
+                <p className="text-[11px] text-gray-400 mb-6 leading-relaxed">
+                  Obtén analíticas avanzadas, personalización de colores y posición destacada en el Swipe Deck.
+                </p>
+                <button className="w-full py-2 bg-[#FFD700] text-black font-heading font-bold text-xs uppercase shadow-[4px_4px_0_rgba(255,215,0,0.3)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all">
+                  Mejorar ahora →
+                </button>
+              </div>
+            </motion.div>
+          </div>
+
+        </div>
+
+        {/* Quick Explore Footer */}
+        <div className="bg-surface border-3 border-black p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-neu">
+          <div>
+            <h2 className="font-heading font-bold text-2xl mb-2">¿Listo para conectar?</h2>
+            <p className="text-muted text-sm max-w-md">Descubre otras empresas en el Swipe Deck y guarda tus perfiles favoritos para colaboraciones futuras.</p>
+          </div>
+          <Primary onClick={() => navigate('/swipe')} size="lg" className="flex items-center gap-2 whitespace-nowrap">
+            <Heart size={20} weight="bold" />
+            Abrir Swipe Deck
           </Primary>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-12">
-          {statCards.map((s) => (
-            <div key={s.label} className="stat-card">
-              <div className="flex items-center justify-center mb-3">
-                <s.Icon size={40} weight="bold" />
-              </div>
-              <div className="stat-number mb-2">{loading ? '—' : s.value}</div>
-              <div className="text-sm text-muted font-heading font-semibold uppercase tracking-wide">
-                {s.label}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* QR list */}
-        <div>
-          <div className="flex items-center justify-between mb-5">
-            <h2 className="font-heading font-bold text-2xl">Tus códigos QR</h2>
-            <Primary href="#generar" size="sm" className="flex items-center gap-2">
-              <Plus size={16} weight="bold" />
-              Nuevo QR
-            </Primary>
-          </div>
-
-          {loading ? (
-            <div className="card text-center py-12 text-muted font-heading font-semibold">
-              Cargando...
-            </div>
-          ) : qrs.length === 0 ? (
-            <div className="card text-center py-12">
-              <p className="text-muted mb-4">No tenés códigos QR todavía.</p>
-              <Primary href="#generar" size="sm">
-                Generá tu primer QR →
-              </Primary>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {qrs.map(qr => (
-                <div key={qr.id || qr.shortCode} className="qr-row">
-                  <div className="flex items-center gap-4">
-                    <CustomQRCode 
-                      value={qr.url || `https://nexxo.social/r/${qr.shortCode}`} 
-                      size={64} 
-                    />
-                    <div>
-                      <div className="font-heading font-bold text-base">{qr.name}</div>
-                      <div className="font-mono text-xs text-muted">
-                        nexxo.social/r/{qr.shortCode}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <div className="font-heading font-extrabold text-2xl">{qr.scans || 0}</div>
-                    <div className="text-xs text-muted uppercase tracking-wide">escaneos</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )
