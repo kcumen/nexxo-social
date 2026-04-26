@@ -155,19 +155,30 @@ app.get('/api/qr/:shortCode', async (c) => {
 })
 
 // ── Scan Routes ──────────────────────────────────────────────────────────────
-app.post('/api/scan/:id', async (c) => {
-  const { id } = c.req.param()
+app.post('/api/scan/:shortCode', async (c) => {
+  const { shortCode } = c.req.param()
   const { userId } = await c.req.json().catch(() => ({}))
 
   try {
+    // Buscar QR por short_code para obtener el UUID real
+    const qr = await c.env.DB.prepare(
+      'SELECT id FROM qr_codes WHERE short_code = ?'
+    ).bind(shortCode).first()
+
+    if (!qr) return c.json({ error: 'QR no encontrado' }, 404)
+
     await c.env.DB.prepare(
       'INSERT INTO scans (id, qr_id, user_id, scanned_at) VALUES (?, ?, ?, ?)'
-    ).bind(crypto.randomUUID(), id, userId || null, Date.now()).run()
-  } catch {
-    // Silenciar error de DB
-  }
+    ).bind(crypto.randomUUID(), qr.id, userId || null, Date.now()).run()
 
-  return c.json({ ok: true, scans: Math.floor(Math.random() * 200) + 10 })
+    const { count } = await c.env.DB.prepare(
+      'SELECT COUNT(*) as count FROM scans WHERE qr_id = ?'
+    ).bind(qr.id).first()
+
+    return c.json({ ok: true, scanCount: count })
+  } catch (e) {
+    return c.json({ error: 'db error', detail: String(e) }, 500)
+  }
 })
 
 // ── Company Routes ───────────────────────────────────────────────────────────
