@@ -15,9 +15,10 @@ CREATE TABLE IF NOT EXISTS companies (
 
 CREATE TABLE IF NOT EXISTS qr_codes (
   id TEXT PRIMARY KEY,
-  slug TEXT NOT NULL,
   short_code TEXT UNIQUE NOT NULL,
-  name TEXT NOT NULL,
+  status TEXT DEFAULT 'blank' CHECK(status IN ('blank', 'active')),
+  -- 'blank' = QR vacío, sin empresa, puede ser reclamado
+  -- 'active' = QR vinculado a una empresa (1:1)
   company_id TEXT REFERENCES companies(id),
   created_at INTEGER NOT NULL
 );
@@ -29,12 +30,17 @@ CREATE TABLE IF NOT EXISTS scans (
   scanned_at INTEGER NOT NULL
 );
 
+-- Users (admin y operadores)
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
   email TEXT UNIQUE NOT NULL,
   name TEXT DEFAULT '',
+  password_hash TEXT NOT NULL,
+  role TEXT DEFAULT 'user' CHECK(role IN ('admin', 'user')),
   created_at INTEGER NOT NULL
 );
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 CREATE TABLE IF NOT EXISTS saved_profiles (
   user_id TEXT NOT NULL REFERENCES users(id),
@@ -44,7 +50,8 @@ CREATE TABLE IF NOT EXISTS saved_profiles (
 );
 
 -- Indexes
-CREATE INDEX IF NOT EXISTS idx_qr_slug ON qr_codes(slug);
 CREATE INDEX IF NOT EXISTS idx_qr_short ON qr_codes(short_code);
+CREATE INDEX IF NOT EXISTS idx_qr_status ON qr_codes(status);
+CREATE INDEX IF NOT EXISTS idx_qr_company ON qr_codes(company_id);
 CREATE INDEX IF NOT EXISTS idx_scans_qr ON scans(qr_id);
 CREATE INDEX IF NOT EXISTS idx_company_slug ON companies(slug);

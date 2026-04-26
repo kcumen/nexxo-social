@@ -11,6 +11,7 @@ import {
   Crown,
   Lightning,
 } from '@phosphor-icons/react'
+import { Primary, Secondary, Accent } from '../components/Buttons'
 
 // ── Tipos de badges para empresas ─────────────────────────────────────────────
 const BADGE_CONFIG = {
@@ -267,7 +268,7 @@ function CompanyCard({ company, onSwipe }) {
         </div>
       </div>
 
-      /* Hint de gesto */
+      {/* Hint de gesto */}
       <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-4 opacity-40 pointer-events-none">
         <div className="flex items-center gap-1.5">
           <X size={12} weight="bold" className="text-muted" />
@@ -282,25 +283,7 @@ function CompanyCard({ company, onSwipe }) {
   )
 }
 
-// ── Componente: Botón de acción (optimizado para mobile) ────────────────────────
-function ActionButton({ onClick, variant = 'pass', children }) {
-  const isPass = variant === 'pass'
-  return (
-    <button
-      onClick={onClick}
-      className={`flex items-center justify-center gap-2 border-3 border-black shadow-neu-md font-heading font-bold text-base transition-all active:translate-y-0.5 active:shadow-neu-sm ${
-        isPass
-          ? 'bg-text text-surface hover:shadow-neu-lg'
-          : 'bg-primary text-text hover:shadow-neu-lg'
-      } ${isPass ? 'w-16 h-16 md:w-20 md:h-20 rounded-full' : 'flex-1 py-4 md:py-5 md:rounded-full'}`}
-      style={{ minWidth: isPass ? '64px' : '0' }}
-    >
-      {children}
-    </button>
-  )
-}
-
-// ── Componente: Modal de Match ───────────────────────────────────────────────
+// ── Componente: Modal de Match ────────────────────────────────────────────────
 function MatchModal({ company, onClose }) {
   if (!company) return null
 
@@ -327,12 +310,9 @@ function MatchModal({ company, onClose }) {
           <p className="text-sm text-muted">{company.tagline}</p>
         </div>
 
-        <button
-          onClick={onClose}
-          className="btn-primary w-full justify-center"
-        >
+        <Primary onClick={onClose} className="w-full justify-center">
           Continuar swipeando
-        </button>
+        </Primary>
       </div>
     </div>
   )
@@ -349,9 +329,9 @@ function EmptyState({ onBack }) {
       <p className="text-muted text-base mb-8 max-w-xs">
         Ya viste todas las empresas en este evento. Volvé cuando haya más attendees.
       </p>
-      <button onClick={onBack} className="btn-primary">
+      <Primary onClick={onBack}>
         ← Volver al inicio
-      </button>
+      </Primary>
     </div>
   )
 }
@@ -402,13 +382,10 @@ export default function SwipeDeck({ onBack }) {
     <div className="min-h-screen bg-bg flex flex-col" style={{ height: '100dvh', overscrollBehavior: 'none', touchAction: 'none' }}>
       {/* Header */}
       <div className="border-b-3 border-black px-4 py-3 flex items-center gap-3 bg-surface flex-shrink-0">
-        <button
-          onClick={onBack}
-          className="btn-secondary text-sm py-1.5 px-3 flex items-center gap-1.5 flex-shrink-0"
-        >
+        <Secondary size="sm" onClick={onBack} className="flex items-center gap-1.5 flex-shrink-0">
           <ArrowLeft size={14} weight="bold" />
           <span className="hidden sm:inline">Volver</span>
-        </button>
+        </Secondary>
 
         <div className="flex-1 text-center min-w-0">
           <div className="font-heading font-bold text-sm truncate">{eventName}</div>
@@ -444,14 +421,14 @@ export default function SwipeDeck({ onBack }) {
 
             {/* Action buttons — siempre visibles en bottom */}
             <div className="flex items-center gap-3 pt-3 pb-1 flex-shrink-0">
-              <ActionButton onClick={() => handleSwipe('left')} variant="pass">
+              <Accent circle onClick={() => handleSwipe('left')} style={{ touchAction: 'manipulation' }}>
                 <X size={22} weight="bold" />
-              </ActionButton>
+              </Accent>
 
-              <ActionButton onClick={() => handleSwipe('right')} variant="connect">
+              <Primary onClick={() => handleSwipe('right')} className="flex-1" style={{ touchAction: 'manipulation' }}>
                 <Heart size={20} weight="bold" />
                 <span className="text-base">Connect</span>
-              </ActionButton>
+              </Primary>
             </div>
           </>
         ) : (
