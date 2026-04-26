@@ -39,6 +39,9 @@ const API = {
   async getQRs() {
     return request('GET', '/qr/list')
   },
+  async deleteQRs(ids) {
+    return request('POST', '/qr/delete', { ids })
+  },
   async getQR(shortCode) {
     return request('GET', `/qr/${shortCode}`)
   },
@@ -593,6 +596,9 @@ function AdminDashboard({ user, onBack }) {
   const [batchCount, setBatchCount] = useState(10)
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(null)
+  const [selected, setSelected] = useState([])
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const loadData = () => {
     Promise.all([
@@ -601,6 +607,7 @@ function AdminDashboard({ user, onBack }) {
     ]).then(([s, q]) => {
       setStats(s)
       setQrs(q || [])
+      setSelected([])
       setLoading(false)
     })
   }
@@ -621,6 +628,24 @@ function AdminDashboard({ user, onBack }) {
     } finally {
       setGenerating(false)
     }
+  }
+
+  const handleDeleteSelected = async () => {
+    setDeleting(true)
+    try {
+      const res = await API.deleteQRs(selected)
+      setSelected([])
+      setConfirmDelete(false)
+      loadData()
+    } catch {
+      alert('Error eliminando QRs')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  const toggleSelect = (id) => {
+    setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
   }
 
   const activeQRs = qrs.filter(q => q.status === 'active')
@@ -746,11 +771,24 @@ function AdminDashboard({ user, onBack }) {
           <div>
             <div className="card">
               <div className="flex items-center justify-between mb-5">
-                <h2 className="font-heading font-bold text-2xl">Todos los QRs</h2>
-                <Secondary size="sm" onClick={loadData} className="flex items-center gap-1">
-                  <ArrowLeft size={14} weight="bold" className="rotate-180" />
-                  Refrescar
-                </Secondary>
+                <div className="flex items-center gap-3">
+                  <h2 className="font-heading font-bold text-2xl">Todos los QRs</h2>
+                  {selected.length > 0 && (
+                    <Accent size="sm" onClick={() => setConfirmDelete(true)} className="flex items-center gap-1">
+                      <X size={12} weight="bold" />
+                      Eliminar {selected.length}
+                    </Accent>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  {selected.length > 0 && (
+                    <span className="text-xs font-mono text-muted">{selected.length} seleccionado{selected.length > 1 ? 's' : ''}</span>
+                  )}
+                  <Secondary size="sm" onClick={loadData} className="flex items-center gap-1">
+                    <ArrowLeft size={14} weight="bold" className="rotate-180" />
+                    Refrescar
+                  </Secondary>
+                </div>
               </div>
 
               {loading ? (
@@ -760,7 +798,17 @@ function AdminDashboard({ user, onBack }) {
               ) : (
                 <div className="space-y-3 max-h-[500px] overflow-y-auto">
                   {qrs.map(qr => (
-                    <div key={qr.qr_id || qr.id} className="flex items-center gap-3 p-3 border-3 border-black bg-bg">
+                    <div key={qr.qr_id || qr.id} className={`flex items-center gap-3 p-3 border-3 border-black bg-bg ${qr.status === 'blank' ? 'cursor-pointer' : 'opacity-60'}`} onClick={() => qr.status === 'blank' && toggleSelect(qr.qr_id || qr.id)}>
+                      {qr.status === 'blank' && (
+                        <div
+                          className={`w-6 h-6 border-3 border-black flex-shrink-0 flex items-center justify-center transition-colors ${selected.includes(qr.qr_id || qr.id) ? 'bg-accent' : 'bg-surface'}`}
+                          style={{ minWidth: 20, minHeight: 20 }}
+                        >
+                          {selected.includes(qr.qr_id || qr.id) && (
+                            <X size={12} weight="bold" color="#fff" />
+                          )}
+                        </div>
+                      )}
                       <img
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=48x48&data=${encodeURIComponent(`https://nexxo.social/r/${qr.short_code}`)}`}
                         alt={qr.short_code}
@@ -938,6 +986,26 @@ function ClaimPage({ shortCode, onBack }) {
           </p>
         </div>
       </div>
+
+      {/* Confirmación de eliminación */}
+      {confirmDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-6">
+          <div className="bg-surface border-3 border-black shadow-neu-lg p-8 max-w-sm w-full">
+            <h3 className="font-heading font-extrabold text-2xl mb-3">¿Eliminar {selected.length} QR{selected.length > 1 ? 's' : ''}?</h3>
+            <p className="text-muted text-sm mb-8 leading-relaxed">
+              Los códigos QR seleccionados serán eliminados <strong>definitivamente</strong>. Esta acción no se puede deshacer.
+            </p>
+            <div className="flex gap-3">
+              <Secondary onClick={() => setConfirmDelete(false)} className="flex-1 justify-center">
+                Cancelar
+              </Secondary>
+              <Accent onClick={handleDeleteSelected} disabled={deleting} className="flex-1 justify-center disabled:opacity-50">
+                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+              </Accent>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -141,6 +141,23 @@ app.get('/api/qr/list', async (c) => {
   }
 })
 
+app.post('/api/qr/delete', async (c) => {
+  const { ids } = await c.req.json().catch(() => ({}))
+  if (!ids || !Array.isArray(ids) || ids.length === 0) {
+    return c.json({ error: 'ids requerido' }, 400)
+  }
+  try {
+    // Solo eliminar QRs en status 'blank' (no reclamados)
+    const placeholders = ids.map(() => '?').join(',')
+    const { meta } = await c.env.DB.prepare(
+      `DELETE FROM qr_codes WHERE id IN (${placeholders}) AND status = 'blank'`
+    ).bind(...ids).run()
+    return c.json({ deleted: meta.changes, requested: ids.length })
+  } catch (e) {
+    return c.json({ error: 'db error', detail: String(e) }, 500)
+  }
+})
+
 app.get('/api/qr/:shortCode', async (c) => {
   const { shortCode } = c.req.param()
   try {
