@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   BrowserRouter,
   Routes,
@@ -134,6 +134,70 @@ export const API = {
   getToken() {
     return localStorage.getItem('nexxo_token') || ''
   },
+}
+
+// ── Shared Components ────────────────────────────────────────────────────────
+function OTPInput({ value, onChange, onComplete, length = 6 }) {
+  const inputRefs = useRef([])
+
+  const handleChange = (e, index) => {
+    const val = e.target.value
+    if (isNaN(val)) return
+
+    const newValue = value.split('')
+    newValue[index] = val.slice(-1)
+    const combined = newValue.join('')
+    onChange(combined)
+
+    if (combined.length === length && onComplete) {
+      onComplete(combined)
+    }
+
+    if (val && index < length - 1) {
+      inputRefs.current[index + 1].focus()
+    }
+  }
+
+  const handleKeyDown = (e, index) => {
+    if (e.key === 'Backspace' && !value[index] && index > 0) {
+      inputRefs.current[index - 1].focus()
+    }
+  }
+
+  const handlePaste = (e) => {
+    e.preventDefault()
+    const data = e.clipboardData.getData('text').trim()
+    if (!/^\d+$/.test(data)) return
+
+    const pasteData = data.slice(0, length)
+    onChange(pasteData)
+    
+    if (pasteData.length === length && onComplete) {
+      onComplete(pasteData)
+    }
+
+    // Focus last input or the one after the pasted length
+    const focusIndex = Math.min(pasteData.length, length - 1)
+    inputRefs.current[focusIndex].focus()
+  }
+
+  return (
+    <div className="flex gap-2 justify-between" onPaste={handlePaste}>
+      {Array.from({ length }).map((_, i) => (
+        <input
+          key={i}
+          ref={el => inputRefs.current[i] = el}
+          type="text"
+          inputMode="numeric"
+          maxLength={1}
+          value={value[i] || ''}
+          onChange={e => handleChange(e, i)}
+          onKeyDown={e => handleKeyDown(e, i)}
+          className="w-12 h-14 border-3 border-black text-center text-2xl font-black bg-white shadow-neu-xs focus:shadow-neu focus:bg-primary focus:-translate-y-0.5 transition-all outline-none"
+        />
+      ))}
+    </div>
+  )
 }
 
 // ── Navigation ───────────────────────────────────────────────────────────────
@@ -691,12 +755,37 @@ function LoginPage({ onLogin }) {
   }
 
   const handleVerifyOTP = async (e) => {
-    e.preventDefault()
-    if (!code) return
+    if (e) e.preventDefault()
+    // Si no hay código (por ejemplo, disparado por auto-submit), usamos el estado actual
+    const codeToVerify = code
+    if (!codeToVerify || codeToVerify.length < 6) return
+    
     setLoading(true)
     setError(null)
     try {
-      const user = await API.verifyOTP(email, code)
+      const user = await API.verifyOTP(email, codeToVerify)
+      onLogin(user)
+    } catch (err) {
+      setError(err.message || 'Código inválido')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Wrapper para auto-submit
+  const onComplete = (finalCode) => {
+    // Usamos un pequeño timeout para que el usuario vea el último dígito puesto
+    setTimeout(() => {
+      // Pasamos el código final directamente para evitar problemas de cierre de estado
+      verifyDirectly(finalCode)
+    }, 100)
+  }
+
+  const verifyDirectly = async (codeToVerify) => {
+    setLoading(true)
+    setError(null)
+    try {
+      const user = await API.verifyOTP(email, codeToVerify)
       onLogin(user)
     } catch (err) {
       setError(err.message || 'Código inválido')
@@ -758,15 +847,7 @@ function LoginPage({ onLogin }) {
               <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
                 Código de Verificación
               </label>
-              <input
-                type="text"
-                value={code}
-                onChange={e => setCode(e.target.value)}
-                className="input-neubrut w-full text-center text-2xl tracking-[1em] font-black"
-                placeholder="000000"
-                maxLength={6}
-                required
-              />
+              <OTPInput value={code} onChange={setCode} onComplete={onComplete} />
             </div>
 
             {error && (
@@ -1142,14 +1223,16 @@ function ClaimPage({ onUpdateUser }) {
     }
   }
 
-  const handleVerifyAndClaim = async (e) => {
-    e.preventDefault()
-    if (!otpCode) return
+  const handleVerifyAndClaim = async (e, codeToUse) => {
+    if (e) e.preventDefault()
+    const code = codeToUse || otpCode
+    if (!code || code.length < 6) return
+
     setLoading(true)
     setError(null)
     try {
       // 1. Verificar el código y obtener sesión
-      const user = await API.verifyOTP(formData.email, otpCode)
+      const user = await API.verifyOTP(formData.email, code)
       
       // 2. Vincular el QR a la empresa
       const res = await API.claimQR(shortCode, formData.companyName, formData.tagline)
@@ -1166,6 +1249,10 @@ function ClaimPage({ onUpdateUser }) {
     } finally {
       setLoading(false)
     }
+  }
+
+  const onOTPComplete = (finalCode) => {
+    setTimeout(() => handleVerifyAndClaim(null, finalCode), 100)
   }
 
   if (result) {
@@ -1295,15 +1382,7 @@ function ClaimPage({ onUpdateUser }) {
             <form onSubmit={handleVerifyAndClaim} className="space-y-5">
               <div>
                 <label className="label-neubrut">Código de Verificación</label>
-                <input
-                  type="text"
-                  value={otpCode}
-                  onChange={e => setOtpCode(e.target.value)}
-                  className="input-neubrut w-full text-center text-3xl font-black tracking-[0.5em]"
-                  placeholder="000000"
-                  maxLength={6}
-                  required
-                />
+                <OTPInput value={otpCode} onChange={setOtpCode} onComplete={onOTPComplete} />
               </div>
 
               {error && (

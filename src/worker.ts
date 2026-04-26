@@ -297,7 +297,7 @@ app.post('/api/auth/otp/verify', async (c) => {
   const normalizedEmail = email.toLowerCase().trim()
 
   // Bypass para admin en dev
-  if (normalizedEmail === 'andardg@gmail.com' && code === '1189') {
+  if (normalizedEmail === 'andardg@gmail.com' && code === '011890') {
      const token = await makeToken({ sub: 'admin-1', email: normalizedEmail, role: 'admin', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + 60*60*24*7 }, secret)
      return c.json({ token, user: { id: 'admin-1', email: normalizedEmail, name: 'Admin', role: 'admin' } })
   }
