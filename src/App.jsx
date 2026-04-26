@@ -1464,13 +1464,22 @@ function AppContent() {
   const [user, setUser] = useState(() => API.getCurrentUser())
   const location = useLocation()
   
-  // Ocultar nav en rutas de onboarding/registro para enfoque total
-  const hideNav = location.pathname.startsWith('/claim/') || location.pathname.startsWith('/r/')
+  // Ocultar Navbar superior en rutas de onboarding/registro
+  const hideNavbar = location.pathname.startsWith('/claim/') || location.pathname.startsWith('/r/')
+  
+  // Ocultar MobileNav en rutas inmersivas, home o formularios
+  const hideMobileNav = hideNavbar || 
+                        location.pathname === '/' ||
+                        location.pathname === '/login' || 
+                        location.pathname === '/swipe';
+
+  // Solo mostrar MobileNav si el usuario está logueado y no está en una ruta oculta
+  const showMobileNav = user && !hideMobileNav;
 
   return (
     <div className="flex flex-col min-h-screen">
-      {!hideNav && <Navbar user={user} onLogout={() => setUser(null)} />}
-      <main className={`flex-1 ${hideNav ? 'pt-0' : 'pt-24 pb-20 md:pb-0'}`}>
+      {!hideNavbar && <Navbar user={user} onLogout={() => setUser(null)} />}
+      <main className={`flex-1 ${hideNavbar ? 'pt-0' : 'pt-24 pb-20 md:pb-0'}`}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
           <Route path="/dashboard" element={<Dashboard user={user} />} />
@@ -1490,7 +1499,7 @@ function AppContent() {
           <Route path="/claim" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      {!hideNav && <MobileNav user={user} />}
+      {showMobileNav && <MobileNav user={user} />}
     </div>
   )
 }
