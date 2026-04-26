@@ -1,0 +1,31 @@
+name: Add issues and PRs to project
+
+on:
+  issues:
+    types:
+      - opened
+      - reopened
+  pull_request:
+    types:
+      - opened
+      - reopened
+
+jobs:
+  add-to-project:
+    name: Add to project
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/add-to-project@v1.0.2
+        with:
+          project-url: https://github.com/orgs/kcumen/projects/${{ vars.PROJECT_NUMBER }}
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+        id: add-project
+        
+      - name: Update project fields
+        uses: titoportas/update-project-fields@v0.1.0
+        with:
+          project-url: https://github.com/orgs/kcumen/projects/${{ vars.PROJECT_NUMBER }}
+          github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+          item-id: ${{ steps.add-project.outputs.itemId }}
+          field-keys: Status
+          field-values: Todo

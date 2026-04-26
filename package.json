@@ -1,0 +1,29 @@
+{
+  "name": "nexxo-social",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Networking corporativo a través del escaneo de códigos QR conectados a perfiles corporativos.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler pages deploy dist"
+  },
+  "dependencies": {
+    "@cloudflare/workers-types": "^4.20260425.1",
+    "d1-sdk": "^1.0.1",
+    "hono": "^4.12.15",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.10",
+    "tailwindcss": "^4.2.4",
+    "vite": "^8.0.10",
+    "wrangler": "^4.85.0"
+  }
+}
