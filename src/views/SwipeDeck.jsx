@@ -267,7 +267,7 @@ function CompanyCard({ company, onSwipe }) {
         </div>
       </div>
 
-      {/* Hint de gesto */}
+      /* Hint de gesto */
       <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-4 opacity-40 pointer-events-none">
         <div className="flex items-center gap-1.5">
           <X size={12} weight="bold" className="text-muted" />
@@ -288,10 +288,10 @@ function ActionButton({ onClick, variant = 'pass', children }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center justify-center gap-2 border-3 border-black shadow-neu-md font-heading font-bold transition-all active:translate-y-0.5 active:shadow-neu-sm ${
+      className={`flex items-center justify-center gap-2 border-3 border-black shadow-neu-md font-heading font-bold text-base transition-all active:translate-y-0.5 active:shadow-neu-sm ${
         isPass
-          ? 'bg-surface text-text hover:shadow-neu-lg'
-          : 'bg-accent text-white hover:shadow-neu-lg'
+          ? 'bg-text text-surface hover:shadow-neu-lg'
+          : 'bg-primary text-text hover:shadow-neu-lg'
       } ${isPass ? 'w-16 h-16 md:w-20 md:h-20 rounded-full' : 'flex-1 py-4 md:py-5 md:rounded-full'}`}
       style={{ minWidth: isPass ? '64px' : '0' }}
     >
@@ -399,7 +399,7 @@ export default function SwipeDeck({ onBack }) {
     : ''
 
   return (
-    <div className="min-h-screen bg-bg flex flex-col" style={{ height: '100dvh' }}>
+    <div className="min-h-screen bg-bg flex flex-col" style={{ height: '100dvh', overscrollBehavior: 'none', touchAction: 'none' }}>
       {/* Header */}
       <div className="border-b-3 border-black px-4 py-3 flex items-center gap-3 bg-surface flex-shrink-0">
         <button
