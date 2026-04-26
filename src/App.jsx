@@ -48,6 +48,7 @@ function CustomQRCode({ value, size = 128, logoUrl = '/nexxo-logo.png', noPaddin
 }
 
 const API_BASE = '/api'
+const getRedirectUrl = (shortCode) => `${window.location.origin}/r/${shortCode}`
 
 async function request(method, path, body) {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -566,7 +567,7 @@ function Dashboard() {
                 <div className="space-y-4">
                   <div className="flex justify-center">
                     <CustomQRCode 
-                      value={qrs[0].url || `https://nexxo.social/r/${qrs[0].shortCode}`} 
+                      value={getRedirectUrl(qrs[0].shortCode)} 
                       size={180} 
                     />
                   </div>
@@ -862,7 +863,7 @@ function AdminDashboard({ user, onLogout }) {
                     {generated.slice(0, 10).map(qr => (
                       <CustomQRCode 
                         key={qr.qrId}
-                        value={`https://nexxo.social/r/${qr.shortCode}`} 
+                        value={getRedirectUrl(qr.shortCode)} 
                         size={64} 
                         noPadding
                         noShadow
@@ -986,7 +987,7 @@ function AdminDashboard({ user, onLogout }) {
                         </button>
                       )}
                       <CustomQRCode 
-                        value={`https://nexxo.social/r/${qr.short_code}`} 
+                        value={getRedirectUrl(qr.short_code)} 
                         size={36} 
                         noPadding 
                         noShadow
@@ -1086,12 +1087,12 @@ function ClaimPage() {
             <p className="text-muted text-sm leading-relaxed mb-8">
               Tu identidad digital ya está vinculada. <span className="font-bold text-black">{formData.companyName}</span> está lista para conectar.
             </p>
-            <div className="flex justify-center mb-8 p-4 bg-white border-2 border-black/10">
-              <CustomQRCode 
-                value={result.url || `https://nexxo.social/r/${result.shortCode}`} 
-                size={180} 
-              />
-            </div>
+              <div className="flex justify-center mb-8 p-4 bg-white border-2 border-black/10">
+                <CustomQRCode 
+                  value={getRedirectUrl(result.shortCode)} 
+                  size={180} 
+                />
+              </div>
             <div className="bg-bg p-4 border-3 border-black font-mono text-xs break-all">
               nexxo.social/r/{result.shortCode}
             </div>
@@ -1113,7 +1114,7 @@ function ClaimPage() {
         </div>
         <div className="relative z-10 text-center">
           <div className="bg-white border-4 border-black p-8 shadow-neu mb-8 inline-block -rotate-3">
-             <CustomQRCode value={`https://nexxo.social/r/${shortCode}`} size={200} />
+             <CustomQRCode value={getRedirectUrl(shortCode)} size={200} />
           </div>
           <h2 className="font-heading font-black text-5xl mb-4">Tu llave al networking digital</h2>
           <p className="text-xl font-heading font-bold max-w-sm mx-auto">
