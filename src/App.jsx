@@ -10,6 +10,7 @@ import {
   SquaresFour,
   Heart,
   Users,
+  X,
 } from '@phosphor-icons/react'
 import { Primary, Secondary, Accent } from './components/Buttons'
 import SwipeDeck from './views/SwipeDeck'
@@ -798,16 +799,48 @@ function AdminDashboard({ user, onBack }) {
               ) : (
                 <div className="space-y-3 max-h-[500px] overflow-y-auto">
                   {qrs.map(qr => (
-                    <div key={qr.qr_id || qr.id} className={`flex items-center gap-3 p-3 border-3 border-black bg-bg ${qr.status === 'blank' ? 'cursor-pointer' : 'opacity-60'}`} onClick={() => qr.status === 'blank' && toggleSelect(qr.qr_id || qr.id)}>
+                    <div
+                      key={qr.qr_id || qr.id}
+                      className={`flex items-center gap-3 p-3 border-3 border-black bg-bg ${qr.status === 'blank' ? 'cursor-pointer' : 'opacity-60'}`}
+                      onClick={() => {
+                        if (qr.status !== 'blank') return
+                        const id = qr.qr_id || qr.id
+                        setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+                      }}
+                    >
                       {qr.status === 'blank' && (
-                        <div
-                          className={`w-6 h-6 border-3 border-black flex-shrink-0 flex items-center justify-center transition-colors ${selected.includes(qr.qr_id || qr.id) ? 'bg-accent' : 'bg-surface'}`}
-                          style={{ minWidth: 20, minHeight: 20 }}
+                        <button
+                          type="button"
+                          onMouseDown={e => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                          }}
+                          onClick={e => {
+                            e.stopPropagation()
+                            const id = qr.qr_id || qr.id
+                            setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+                          }}
+                          style={{
+                            width: 20,
+                            height: 20,
+                            border: '3px solid #000',
+                            borderRadius: 0,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            transition: 'background-color 0.15s',
+                            backgroundColor: selected.includes(qr.qr_id || qr.id) ? '#EF4444' : '#F5F5F5',
+                            cursor: 'pointer',
+                            flexShrink: 0,
+                            padding: 0,
+                          }}
                         >
                           {selected.includes(qr.qr_id || qr.id) && (
-                            <X size={12} weight="bold" color="#fff" />
+                            <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                              <path d="M1 4L3.5 6.5L9 1" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
                           )}
-                        </div>
+                        </button>
                       )}
                       <img
                         src={`https://api.qrserver.com/v1/create-qr-code/?size=48x48&data=${encodeURIComponent(`https://nexxo.social/r/${qr.short_code}`)}`}
