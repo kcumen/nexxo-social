@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@cloudflare/workers-types": "^4.20260425.1",
+    "@phosphor-icons/react": "^2.1.10",
     "d1-sdk": "^1.0.1",
     "hono": "^4.12.15",
     "react": "^19.2.5",

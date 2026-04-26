@@ -1,4 +1,16 @@
 import { useState, useEffect } from 'react'
+import {
+  QrCode,
+  Buildings,
+  ChartLineUp,
+  DeviceMobile,
+  Cube,
+  X,
+  ArrowLeft,
+  Plus,
+  SquaresFour,
+  Heart,
+} from '@phosphor-icons/react'
 
 const API_BASE = '/api'
 
@@ -104,43 +116,25 @@ function Hero() {
 function Features() {
   const features = [
     {
-      icon: (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
-          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-          <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-        </svg>
-      ),
+      Icon: QrCode,
       title: 'QR personalizable',
       desc: 'Genera códigos únicos para cada canal, evento o ubicación física.',
       color: 'primary',
     },
     {
-      icon: (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
-          <path d="M3 21h18M5 21V7l8-4 8 4v14M9 21v-6h6v6"/>
-        </svg>
-      ),
+      Icon: Buildings,
       title: 'Perfil corporativo',
       desc: 'Empresa autenticada con LinkedIn, Google o Instagram. Sin magia negra.',
       color: 'secondary',
     },
     {
-      icon: (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
-          <path d="M3 3v18h18M7 16l4-4 4 4 6-6"/>
-        </svg>
-      ),
+      Icon: ChartLineUp,
       title: 'Analytics',
       desc: 'Sabé cuántos escanean cada QR, cuándo y desde dónde.',
       color: 'primary',
     },
     {
-      icon: (
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="square">
-          <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
-          <path d="M12 8v4l3 3"/>
-        </svg>
-      ),
+      Icon: DeviceMobile,
       title: 'Sin app',
       desc: 'El escaneador solo abre el navegador. No necesita instalar nada.',
       color: 'secondary',
@@ -166,10 +160,10 @@ function Features() {
 
         {/* Feature grid */}
         <div className="grid md:grid-cols-2 gap-6">
-          {features.map((f, i) => (
+          {features.map((f) => (
             <div key={f.title} className="card flex items-start gap-5">
               <div className={`feature-icon ${colorMap[f.color]} flex-shrink-0`}>
-                {f.icon}
+                <f.Icon size={28} weight="bold" />
               </div>
               <div>
                 <h3 className="font-heading font-bold text-xl mb-2">{f.title}</h3>
@@ -267,9 +261,10 @@ function QRGenerator() {
             </p>
             <button
               onClick={() => { setResult(null); setName('') }}
-              className="mt-6 text-sm font-heading font-semibold text-muted hover:text-text transition"
+              className="mt-6 text-sm font-heading font-semibold text-muted hover:text-text transition flex items-center gap-1"
             >
-              ← Generar otro
+              <ArrowLeft size={14} weight="bold" />
+              Generar otro
             </button>
           </div>
         )}
@@ -331,9 +326,9 @@ function Dashboard({ onBack }) {
   }, [])
 
   const statCards = [
-    { label: 'QRs activos', value: stats.qrs, icon: '▦', color: 'primary' },
-    { label: 'Escaneos totales', value: stats.scans, icon: '◉', color: 'secondary' },
-    { label: 'Perfiles guardados', value: Math.floor(stats.scans * 0.4), icon: '♥', color: 'accent' },
+    { label: 'QRs activos', value: stats.qrs, Icon: SquaresFour, color: 'primary' },
+    { label: 'Escaneos totales', value: stats.scans, Icon: Cube, color: 'secondary' },
+    { label: 'Perfiles guardados', value: Math.floor(stats.scans * 0.4), Icon: Heart, color: 'accent' },
   ]
 
   return (
@@ -342,9 +337,10 @@ function Dashboard({ onBack }) {
       <div className="border-b-3 border-black px-6 md:px-12 py-4 flex items-center gap-6 bg-surface">
         <button
           onClick={onBack}
-          className="btn-secondary text-sm py-2 px-4"
+          className="btn-secondary text-sm py-2 px-4 flex items-center gap-2"
         >
-          ← Volver
+          <ArrowLeft size={16} weight="bold" />
+          Volver
         </button>
         <div className="flex items-center gap-3">
           <div className="bg-secondary border-3 border-black shadow-neu-sm w-8 h-8 flex items-center justify-center font-heading font-black text-white text-sm">
@@ -367,8 +363,11 @@ function Dashboard({ onBack }) {
 
         {/* Stats */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-12">
-          {statCards.map(s => (
+          {statCards.map((s) => (
             <div key={s.label} className="stat-card">
+              <div className="flex items-center justify-center mb-3">
+                <s.Icon size={40} weight="bold" />
+              </div>
               <div className="stat-number mb-2">{loading ? '—' : s.value}</div>
               <div className="text-sm text-muted font-heading font-semibold uppercase tracking-wide">
                 {s.label}
@@ -381,8 +380,9 @@ function Dashboard({ onBack }) {
         <div>
           <div className="flex items-center justify-between mb-5">
             <h2 className="font-heading font-bold text-2xl">Tus códigos QR</h2>
-            <a href="#generar" className="btn-primary text-sm py-2 px-4">
-              + Nuevo QR
+            <a href="#generar" className="btn-primary text-sm py-2 px-4 flex items-center gap-2">
+              <Plus size={16} weight="bold" />
+              Nuevo QR
             </a>
           </div>
 
