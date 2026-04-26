@@ -57,9 +57,13 @@ const getRedirectUrl = (shortCode) => {
 }
 
 async function request(method, path, body) {
+  const token = localStorage.getItem('nexxo_token')
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(`${API_BASE}${path}`, {
     method,
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   })
   if (!res.ok) throw new Error(`API error ${res.status}`)
@@ -91,18 +95,20 @@ const API = {
   async getCompany(slug) {
     return request('GET', `/company/${slug}`)
   },
-  async login(email, password) {
-    const res = await fetch('/api/auth/login', {
+  async sendOTP(email) {
+    return request('POST', '/auth/otp/send', { email })
+  },
+  async verifyOTP(email, code) {
+    const res = await fetch('/api/auth/otp/verify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, code }),
     })
     if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Login falló' }))
-      throw new Error(err.error || 'Login falló')
+      const err = await res.json().catch(() => ({ error: 'Verificación falló' }))
+      throw new Error(err.error || 'Código inválido')
     }
     const data = await res.json()
-    // Guardar token en localStorage
     localStorage.setItem('nexxo_token', data.token)
     localStorage.setItem('nexxo_user', JSON.stringify(data.user))
     return data.user
@@ -465,12 +471,11 @@ function LandingPage() {
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────
-function Dashboard() {
+function Dashboard({ user }) {
   const navigate = useNavigate()
   const [stats, setStats] = useState({ qrs: 0, scans: 0 })
   const [qrs, setQrs] = useState([])
   const [loading, setLoading] = useState(true)
-  const user = API.getCurrentUser()
 
   useEffect(() => {
     Promise.all([
@@ -631,7 +636,6 @@ function Dashboard() {
               </div>
             </motion.div>
           </div>
-
         </div>
 
         {/* Quick Explore Footer */}
@@ -654,21 +658,38 @@ function Dashboard() {
 // ── Login Page ────────────────────────────────────────────────────────────────
 function LoginPage({ onLogin }) {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('')
+  const [code, setCode] = useState('')
+  const [step, setStep] = useState(1) // 1: Email, 2: Code
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  const handleLogin = async (e) => {
+  const handleSendOTP = async (e) => {
     e.preventDefault()
-    if (!email || !password) return
+    if (!email) return
     setLoading(true)
     setError(null)
     try {
-      const user = await API.login(email, password)
+      await API.sendOTP(email)
+      setStep(2)
+    } catch (err) {
+      setError(err.message || 'Error al enviar el código')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyOTP = async (e) => {
+    e.preventDefault()
+    if (!code) return
+    setLoading(true)
+    setError(null)
+    try {
+      const user = await API.verifyOTP(email, code)
       onLogin(user)
     } catch (err) {
-      setError(err.message || 'Credenciales inválidas')
+      setError(err.message || 'Código inválido')
+    } finally {
       setLoading(false)
     }
   }
@@ -682,51 +703,85 @@ function LoginPage({ onLogin }) {
             <DeviceMobile size={32} weight="bold" color="#fff" />
           </div>
           <h1 className="font-heading font-extrabold text-3xl mb-2">Panel Admin</h1>
-          <p className="text-muted text-sm">Ingresá tus credenciales para continuar</p>
+          <p className="text-muted text-sm">
+            {step === 1 
+              ? 'Ingresá tu email para recibir un código' 
+              : `Ingresá el código enviado a ${email}`}
+          </p>
         </div>
 
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="input-neubrut w-full"
-              required
-            />
-          </div>
-          <div>
-            <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
-              Contraseña
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              placeholder="••••••••"
-              className="input-neubrut w-full"
-              required
-            />
-          </div>
+        {step === 1 ? (
+          <form onSubmit={handleSendOTP} className="space-y-4">
+            <div>
+              <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
+                Email
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="input-neubrut w-full"
+                placeholder="email@ejemplo.com"
+                required
+              />
+            </div>
 
-          {error && (
-            <p className="text-accent text-sm font-semibold bg-accent/10 border-3 border-accent p-3">
-              {error}
-            </p>
-          )}
+            {error && (
+              <p className="text-accent text-sm font-semibold bg-accent/10 border-3 border-accent p-3">
+                {error}
+              </p>
+            )}
 
-          <Accent
-            type="submit"
-            disabled={loading || !email || !password}
-            size="lg"
-            className="w-full justify-center disabled:opacity-50 disabled:cursor-not-allowed mt-2"
-          >
-            {loading ? 'Ingresando...' : 'Ingresar →'}
-          </Accent>
-        </form>
+            <Accent
+              type="submit"
+              disabled={loading || !email}
+              size="lg"
+              className="w-full justify-center disabled:opacity-50 mt-2"
+            >
+              {loading ? 'Enviando...' : 'Recibir código →'}
+            </Accent>
+          </form>
+        ) : (
+          <form onSubmit={handleVerifyOTP} className="space-y-4">
+            <div>
+              <label className="block font-heading font-bold text-sm mb-2 uppercase tracking-wide">
+                Código de Verificación
+              </label>
+              <input
+                type="text"
+                value={code}
+                onChange={e => setCode(e.target.value)}
+                className="input-neubrut w-full text-center text-2xl tracking-[1em] font-black"
+                placeholder="000000"
+                maxLength={6}
+                required
+              />
+            </div>
+
+            {error && (
+              <p className="text-accent text-sm font-semibold bg-accent/10 border-3 border-accent p-3">
+                {error}
+              </p>
+            )}
+
+            <Accent
+              type="submit"
+              disabled={loading || code.length < 4}
+              size="lg"
+              className="w-full justify-center disabled:opacity-50 mt-2"
+            >
+              {loading ? 'Verificando...' : 'Ingresar →'}
+            </Accent>
+            
+            <button 
+              type="button"
+              onClick={() => setStep(1)}
+              className="w-full text-center text-xs font-heading font-bold text-muted hover:text-black mt-4"
+            >
+              ← Volver a ingresar email
+            </button>
+          </form>
+        )}
 
         <div className="mt-8 text-center">
           <Secondary size="sm" onClick={() => navigate('/')} className="inline-flex items-center gap-1">
@@ -1047,31 +1102,56 @@ function AdminDashboard({ user, onLogout }) {
   )
 }
 
-function ClaimPage() {
+function ClaimPage({ onUpdateUser }) {
   const navigate = useNavigate()
   const { code: shortCode } = useParams()
   const [formData, setFormData] = useState({
     companyName: '',
     email: '',
-    password: '',
     tagline: ''
   })
+  const [otpCode, setOtpCode] = useState('')
+  const [step, setStep] = useState(1) // 1: Info, 2: OTP
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
 
-  const handleClaim = async (e) => {
+  const handleStartClaim = async (e) => {
     e.preventDefault()
-    if (!formData.companyName.trim() || !formData.email || !formData.password) return
+    if (!formData.companyName.trim() || !formData.email) return
     setLoading(true)
     setError(null)
     try {
-      // In a real app, this would register the user and link the QR
+      await API.sendOTP(formData.email)
+      setStep(2)
+    } catch (err) {
+      setError(err.message || 'Error al enviar el código de verificación.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleVerifyAndClaim = async (e) => {
+    e.preventDefault()
+    if (!otpCode) return
+    setLoading(true)
+    setError(null)
+    try {
+      // 1. Verificar el código y obtener sesión
+      const user = await API.verifyOTP(formData.email, otpCode)
+      
+      // 2. Vincular el QR a la empresa
       const res = await API.claimQR(shortCode, formData.companyName, formData.tagline)
       if (res.error) throw new Error(res.error)
+      
+      // 3. Actualizar estado local del usuario con el nuevo nombre
+      const updatedUser = { ...user, name: formData.companyName }
+      localStorage.setItem('nexxo_user', JSON.stringify(updatedUser))
+      onUpdateUser(updatedUser)
+      
       setResult(res)
     } catch (err) {
-      setError(err.message || 'No se pudo completar el registro.')
+      setError(err.message || 'Error en la verificación o reclamo.')
     } finally {
       setLoading(false)
     }
@@ -1093,12 +1173,12 @@ function ClaimPage() {
             <p className="text-muted text-sm leading-relaxed mb-8">
               Tu identidad digital ya está vinculada. <span className="font-bold text-black">{formData.companyName}</span> está lista para conectar.
             </p>
-              <div className="flex justify-center mb-8 p-4 bg-white border-2 border-black/10">
-                <CustomQRCode 
-                  value={getRedirectUrl(result.shortCode)} 
-                  size={180} 
-                />
-              </div>
+            <div className="flex justify-center mb-8 p-4 bg-white border-2 border-black/10">
+              <CustomQRCode 
+                value={getRedirectUrl(result.shortCode)} 
+                size={180} 
+              />
+            </div>
             <div className="bg-bg p-4 border-3 border-black font-mono text-xs break-all">
               nexxo.social/r/{result.shortCode}
             </div>
@@ -1134,76 +1214,115 @@ function ClaimPage() {
         <div className="max-w-md w-full">
           <div className="mb-10">
             <span className="tag tag-red mb-4 inline-block">Activación Pendiente</span>
-            <h1 className="font-heading font-black text-4xl md:text-5xl mb-3">Crea tu cuenta</h1>
-            <p className="text-muted">Ingresa los datos para vincular este QR a tu perfil profesional.</p>
+            <h1 className="font-heading font-black text-4xl md:text-5xl mb-3">
+              {step === 1 ? 'Crea tu cuenta' : 'Verifica tu email'}
+            </h1>
+            <p className="text-muted">
+              {step === 1 
+                ? 'Ingresa los datos para vincular este QR a tu perfil profesional.'
+                : `Ingresa el código de 6 dígitos enviado a ${formData.email}`}
+            </p>
           </div>
 
-          <form onSubmit={handleClaim} className="space-y-5">
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="label-neubrut">Nombre de la Empresa / Profesional</label>
-                <input
-                  type="text"
-                  value={formData.companyName}
-                  onChange={e => setFormData({...formData, companyName: e.target.value})}
-                  placeholder="Ej: Nexxo Corp"
-                  className="input-neubrut w-full"
-                  required
-                />
+          {step === 1 ? (
+            <form onSubmit={handleStartClaim} className="space-y-5">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="label-neubrut">Nombre de la Empresa / Profesional</label>
+                  <input
+                    type="text"
+                    value={formData.companyName}
+                    onChange={e => setFormData({...formData, companyName: e.target.value})}
+                    placeholder="Ej: Nexxo Corp"
+                    className="input-neubrut w-full"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label-neubrut">Email Profesional</label>
+                  <input
+                    type="email"
+                    value={formData.email}
+                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    placeholder="email@tuempresa.com"
+                    className="input-neubrut w-full"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="label-neubrut">Slogan / Tagline <span className="text-muted font-normal">(opcional)</span></label>
+                  <input
+                    type="text"
+                    value={formData.tagline}
+                    onChange={e => setFormData({...formData, tagline: e.target.value})}
+                    placeholder="Ej: Innovación en networking"
+                    className="input-neubrut w-full"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="label-neubrut">Email Profesional</label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={e => setFormData({...formData, email: e.target.value})}
-                  placeholder="email@tuempresa.com"
-                  className="input-neubrut w-full"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label-neubrut">Contraseña</label>
-                <input
-                  type="password"
-                  value={formData.password}
-                  onChange={e => setFormData({...formData, password: e.target.value})}
-                  placeholder="••••••••"
-                  className="input-neubrut w-full"
-                  required
-                />
-              </div>
-              <div>
-                <label className="label-neubrut">Slogan / Tagline <span className="text-muted font-normal">(opcional)</span></label>
-                <input
-                  type="text"
-                  value={formData.tagline}
-                  onChange={e => setFormData({...formData, tagline: e.target.value})}
-                  placeholder="Ej: Innovación en networking"
-                  className="input-neubrut w-full"
-                />
-              </div>
-            </div>
 
-            {error && (
-              <motion.p 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="text-accent text-sm font-bold bg-accent/10 border-2 border-accent p-3"
+              {error && (
+                <motion.p 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-accent text-sm font-bold bg-accent/10 border-2 border-accent p-3"
+                >
+                  {error}
+                </motion.p>
+              )}
+
+              <Accent
+                type="submit"
+                disabled={loading}
+                size="lg"
+                className="w-full justify-center mt-6"
               >
-                {error}
-              </motion.p>
-            )}
+                {loading ? 'Enviando código...' : 'Siguiente: Verificar Email →'}
+              </Accent>
+            </form>
+          ) : (
+            <form onSubmit={handleVerifyAndClaim} className="space-y-5">
+              <div>
+                <label className="label-neubrut">Código de Verificación</label>
+                <input
+                  type="text"
+                  value={otpCode}
+                  onChange={e => setOtpCode(e.target.value)}
+                  className="input-neubrut w-full text-center text-3xl font-black tracking-[0.5em]"
+                  placeholder="000000"
+                  maxLength={6}
+                  required
+                />
+              </div>
 
-            <Accent
-              type="submit"
-              disabled={loading}
-              size="lg"
-              className="w-full justify-center mt-6"
-            >
-              {loading ? 'Activando...' : 'Reclamar y Activar QR →'}
-            </Accent>
-          </form>
+              {error && (
+                <motion.p 
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  className="text-accent text-sm font-bold bg-accent/10 border-2 border-accent p-3"
+                >
+                  {error}
+                </motion.p>
+              )}
+
+              <Accent
+                type="submit"
+                disabled={loading || otpCode.length < 6}
+                size="lg"
+                className="w-full justify-center mt-6"
+              >
+                {loading ? 'Verificando...' : 'Activar mi QR ahora →'}
+              </Accent>
+
+              <button 
+                type="button"
+                onClick={() => setStep(1)}
+                className="w-full text-center text-xs font-heading font-bold text-muted hover:text-black mt-4"
+              >
+                ← Volver a editar datos
+              </button>
+            </form>
+          )}
 
           <p className="text-center text-[10px] text-muted mt-8 font-mono uppercase tracking-widest">
             Al activar, este QR físico quedará bloqueado permanentemente a tu cuenta.
@@ -1260,13 +1379,13 @@ function AppContent() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      <Navbar user={user} onLogout={() => setUser(null)} />
+      {!hideNav && <Navbar user={user} onLogout={() => setUser(null)} />}
       <main className={`flex-1 ${hideNav ? 'pt-0' : 'pt-24 pb-20 md:pb-0'}`}>
         <Routes>
           <Route path="/" element={<LandingPage />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/dashboard" element={<Dashboard user={user} />} />
           <Route path="/swipe" element={<SwipeDeck onBack={() => window.history.back()} />} />
-          <Route path="/claim/:code" element={<ClaimPage />} />
+          <Route path="/claim/:code" element={<ClaimPage onUpdateUser={(u) => setUser(u)} />} />
           <Route path="/r/:code" element={<QRRedirector />} />
           <Route path="/login" element={
             user && user.role === 'admin' 

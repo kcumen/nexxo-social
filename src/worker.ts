@@ -103,9 +103,23 @@ app.post('/api/qr/claim', async (c) => {
     await c.env.DB.prepare(
       'INSERT INTO companies (id, name, slug, tagline, created_at) VALUES (?, ?, ?, ?, ?)'
     ).bind(companyId, companyName, slug, tagline || '', now).run()
+    
     await c.env.DB.prepare(
       'UPDATE qr_codes SET status = ?, company_id = ? WHERE short_code = ? AND status = ?'
     ).bind('active', companyId, shortCode, 'blank').run()
+
+    // Actualizar nombre del usuario si está logueado y no tiene nombre
+    const authHeader = c.req.header('Authorization') || ''
+    const token = authHeader.replace('Bearer ', '')
+    if (token) {
+      const secret = c.env.JWT_SECRET || 'dev-secret-change-in-production'
+      try {
+        const payload = await verify(token, secret)
+        if (payload.sub) {
+          await c.env.DB.prepare('UPDATE users SET name = ? WHERE id = ? AND name IS NULL').bind(companyName, payload.sub).run()
+        }
+      } catch {}
+    }
   } catch (e) {
     return c.json({ error: 'db error', detail: String(e) }, 500)
   }
@@ -234,42 +248,69 @@ app.post('/api/company', async (c) => {
 
 // ── Auth Routes ───────────────────────────────────────────────────────────────
 
-// POST /api/auth/login
-app.post('/api/auth/login', async (c) => {
-  const { email, password } = await c.req.json().catch(() => ({}))
-  if (!email || !password) {
-    return c.json({ error: 'email y password requeridos' }, 400)
+// ── OTP Auth Routes ──────────────────────────────────────────────────────────
+
+// POST /api/auth/otp/send
+app.post('/api/auth/otp/send', async (c) => {
+  const { email } = await c.req.json<{ email: string }>()
+  if (!email) return c.json({ error: 'Email requerido' }, 400)
+
+  const normalizedEmail = email.toLowerCase().trim()
+  const otpCode = Math.floor(100000 + Math.random() * 900000).toString() // 6 dígitos
+  const expires = Date.now() + 10 * 60 * 1000 // 10 minutos
+
+  try {
+    // Buscar o crear usuario
+    let user = await c.env.DB.prepare('SELECT id FROM users WHERE email = ?').bind(normalizedEmail).first()
+    
+    if (!user) {
+      const id = crypto.randomUUID()
+      await c.env.DB.prepare(
+        'INSERT INTO users (id, email, role, created_at, otp_code, otp_expires, password_hash) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).bind(id, normalizedEmail, 'user', Date.now(), otpCode, expires, 'OTP_MANAGED').run()
+    } else {
+      await c.env.DB.prepare(
+        'UPDATE users SET otp_code = ?, otp_expires = ? WHERE email = ?'
+      ).bind(otpCode, expires, normalizedEmail).run()
+    }
+
+    // Aquí se enviaría el correo real. Por ahora lo simulamos.
+    console.log(`[OTP DEBUG] Code for ${normalizedEmail}: ${otpCode}`)
+    
+    return c.json({ ok: true, message: 'Código enviado' })
+  } catch (e) {
+    return c.json({ error: 'Error al enviar código', detail: String(e) }, 500)
   }
+})
+
+// POST /api/auth/otp/verify
+app.post('/api/auth/otp/verify', async (c) => {
+  const { email, code } = await c.req.json<{ email: string; code: string }>()
+  if (!email || !code) return c.json({ error: 'Email y código requeridos' }, 400)
 
   const secret = c.env.JWT_SECRET || 'dev-secret-change-in-production'
-  const now = Math.floor(Date.now() / 1000)
-  const exp = now + 60 * 60 * 24 * 7 // 7 días
+  const normalizedEmail = email.toLowerCase().trim()
 
-  const normalizedEmail = email?.toLowerCase().trim();
-  // Credenciales hardcodeadas para dev (funcionan sin DB)
-  if ((normalizedEmail === 'andradg@gmail.com' || normalizedEmail === 'andardg@gmail.com') && password === 'Tender1189') {
-    const token = await makeToken({ sub: 'admin-1', email, role: 'admin', iat: now, exp }, secret)
-    return c.json({
-      token,
-      user: { id: 'admin-1', email, name: 'Admin', role: 'admin' },
-    })
+  // Bypass para admin en dev
+  if (normalizedEmail === 'andardg@gmail.com' && code === '1189') {
+     const token = await makeToken({ sub: 'admin-1', email: normalizedEmail, role: 'admin', iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000) + 60*60*24*7 }, secret)
+     return c.json({ token, user: { id: 'admin-1', email: normalizedEmail, name: 'Admin', role: 'admin' } })
   }
 
-  // Intentar DB solo para otros usuarios
   try {
     const user = await c.env.DB.prepare(
-      'SELECT id, email, name, password_hash, role FROM users WHERE email = ?'
-    ).bind(email.toLowerCase().trim()).first()
+      'SELECT id, email, name, role, otp_code, otp_expires FROM users WHERE email = ?'
+    ).bind(normalizedEmail).first<{ id: string; email: string; name: string; role: string; otp_code: string; otp_expires: number }>()
 
-    if (!user) {
-      return c.json({ error: 'Credenciales inválidas' }, 401)
+    if (!user || user.otp_code !== code || Date.now() > user.otp_expires) {
+      return c.json({ error: 'Código inválido o expirado' }, 401)
     }
 
-    const valid = await verifyPassword(password, user.password_hash)
-    if (!valid) {
-      return c.json({ error: 'Credenciales inválidas' }, 401)
-    }
+    // Limpiar OTP tras éxito
+    await c.env.DB.prepare('UPDATE users SET otp_code = NULL, otp_expires = NULL WHERE id = ?').bind(user.id).run()
 
+    const now = Math.floor(Date.now() / 1000)
+    const exp = now + 60 * 60 * 24 * 7
     const token = await makeToken({
       sub: user.id,
       email: user.email,
@@ -280,55 +321,19 @@ app.post('/api/auth/login', async (c) => {
 
     return c.json({
       token,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role }
     })
   } catch (e) {
-    return c.json({ error: 'Credenciales inválidas' }, 401)
+    return c.json({ error: 'Error de verificación' }, 500)
   }
 })
 
-// GET /api/auth/me — verificar token
-app.get('/api/auth/me', async (c) => {
-  const authHeader = c.req.header('Authorization') || ''
-  const token = authHeader.replace('Bearer ', '')
-  if (!token) return c.json({ error: 'token requerido' }, 401)
+// ── Legacy Auth Routes (To be deprecated) ────────────────────────────────────
 
-  const secret = c.env.JWT_SECRET || 'dev-secret-change-in-production'
-  try {
-    const payload = await verify(token, secret)
-    return c.json({ user: payload })
-  } catch {
-    return c.json({ error: 'token inválido o expirado' }, 401)
-  }
-})
-
-// POST /api/auth/register — crear usuario (solo en dev/admin)
-app.post('/api/auth/register', async (c) => {
-  const { email, password, name, role = 'user' } = await c.req.json().catch(() => ({}))
-  if (!email || !password) return c.json({ error: 'email y password requeridos' }, 400)
-  if (password.length < 8) return c.json({ error: 'Password mínimo 8 caracteres' }, 400)
-
-  const id = crypto.randomUUID()
-  const password_hash = await hashPassword(password)
-  const now = Date.now()
-
-  try {
-    await c.env.DB.prepare(
-      'INSERT INTO users (id, email, name, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?, ?)'
-    ).bind(id, email.toLowerCase().trim(), name || '', password_hash, role, now).run()
-  } catch (e) {
-    if (String(e).includes('UNIQUE')) {
-      return c.json({ error: 'El email ya está registrado' }, 409)
-    }
-    return c.json({ error: 'db error', detail: String(e) }, 500)
-  }
-
-  return c.json({ id, email, name, role })
+// POST /api/auth/login
+app.post('/api/auth/login', async (c) => {
+  // Ahora redirigimos internamente o fallamos para forzar OTP
+  return c.json({ error: 'Usa OTP para ingresar' }, 401)
 })
 
 // ── Stats ───────────────────────────────────────────────────────────────────
